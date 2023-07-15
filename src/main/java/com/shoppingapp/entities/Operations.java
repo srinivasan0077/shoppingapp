@@ -33,10 +33,6 @@ public class Operations {
 				return false;
 			}
 			
-			@Override
-			public JSONObject sendResponse(HttpSession session) {
-				return ResponseUtil.buildExpiryResponse("Otp Expired");
-			}
 			
 			
 		},ValidationForPasswordChange{
@@ -50,11 +46,7 @@ public class Operations {
 				return false;
 			}
 			
-			@Override
-			public JSONObject sendResponse(HttpSession session) {
-				
-				return ResponseUtil.buildExpiryResponse("Otp Expired");
-			}
+		
 		},ChangePassword{
 			@Override
 			public boolean validate(HttpSession session) {
@@ -65,18 +57,16 @@ public class Operations {
 				return false;
 			}
 			
-			@Override
-			public JSONObject sendResponse(HttpSession session) {
-				return ResponseUtil.buildExpiryResponse("Time to change password has been expired");
-			}
 		};
 		
 		public boolean validate(HttpSession session) {
 			return true;
 		}
 		
-		public JSONObject sendResponse(HttpSession session) {
-			return new JSONObject();
+		public Response sendResponse(HttpSession session) {
+			Response responseJSON=new Response("Invalid Request!",Response.UNAUTHORIZED, null);
+			return responseJSON;
 		}
+
 	};
 }

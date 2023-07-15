@@ -23,11 +23,11 @@ public class DeleteQuery {
 	}
 	
 	public String getDeleteQuery() {
-		String query="delete from "+tableName;
+		StringBuilder query=new StringBuilder("delete from ").append(tableName);
 		if(criteria!=null) {
-			query+=" where "+criteria.getCriteria();
+			query.append(" where ").append(criteria.getCriteria());
 		}
-		return query;
+		return query.toString();
 	}
 	
 }

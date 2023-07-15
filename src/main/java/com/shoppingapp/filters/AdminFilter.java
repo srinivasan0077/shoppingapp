@@ -4,6 +4,7 @@ package com.shoppingapp.filters;
 
 
 import java.io.IOException;
+import java.util.Enumeration;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -18,11 +19,6 @@ import javax.servlet.http.HttpSession;
 
 import com.shoppingapp.entities.Response;
 import com.shoppingapp.entities.User;
-import com.shoppingapp.utils.ResponseUtil;
-
-
-
-
 
 
 
@@ -47,11 +43,21 @@ public class AdminFilter extends HttpFilter implements Filter  {
 		if("OPTIONS".equals(req.getMethod())) {
 			chain.doFilter(request, response);
 		}else {
-			System.out.println(req.getHeader("csrf-token"));
 			
 			User user=(User)session.getAttribute("user");
-			if(user==null || !user.isAuthenticated()) {
+			String csrfToken=(String)session.getAttribute("csrfToken");
+			String csrfHeader=req.getHeader("csrf_token");
+			if(user==null || !user.isAuthenticated() || csrfToken==null) {
 	            Response responseJSON=new Response("Unauthorized",Response.UNAUTHORIZED,null);
+				res.setStatus(401);
+				res.addHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+				res.addHeader("Access-Control-Allow-Credentials", "true");
+				res.getWriter().print(responseJSON.toString());
+				return;
+			}
+			
+			if(csrfHeader==null || !csrfHeader.equals(csrfToken)) {
+				Response responseJSON=new Response("Invalid csrf token!",Response.UNAUTHORIZED,null);
 				res.setStatus(401);
 				res.addHeader("Access-Control-Allow-Origin", "http://localhost:3000");
 				res.addHeader("Access-Control-Allow-Credentials", "true");

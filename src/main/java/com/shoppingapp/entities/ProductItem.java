@@ -1,6 +1,8 @@
 package com.shoppingapp.entities;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -27,6 +29,15 @@ public class ProductItem {
 	private Boolean isActive=false;
 	
 	private ArrayList<ProductVariant> variants=new ArrayList<ProductVariant>();
+	
+	public static Map<String,String> classDbNameMapForSearch;
+	
+	static {
+		classDbNameMapForSearch=new HashMap<>();
+		classDbNameMapForSearch.put("productItemId","id");
+		classDbNameMapForSearch.put("productItemName","name");
+		classDbNameMapForSearch.put("product","productId");
+	}
 	
 	public ProductItem(String productItemName,String description) {
 		super();

@@ -3,8 +3,6 @@ package com.shoppingapp.dbutils;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import com.shoppingapp.utils.BeanValidator;
-
 
 public class Criteria {
 
@@ -16,6 +14,7 @@ public class Criteria {
 	private Integer condition=null;
 	private Criteria rightAndCriteria=null;
     private Criteria rightOrCriteria=null;
+    private SelectQuery subQuery;
     
 	public static Integer AND=0;
 	public static Integer OR=1;
@@ -43,6 +42,16 @@ public class Criteria {
 
 	public Criteria() {
 		this.dataCollection=new ArrayList<Object>();
+	}
+	
+	public Criteria(Column column) {
+		this.column=column;
+		this.dataCollection=new ArrayList<Object>();
+	}
+	
+	public Criteria(Column column,SelectQuery subquery) {
+		this.column=column;
+		this.subQuery=subquery;
 	}
 	
 	public Column getColumn() {
@@ -110,67 +119,47 @@ public class Criteria {
 	
 
 	private String getCriteriaString() {
-
-		String criteriaString=this.column.getTableName()+"."+this.column.getColumnName()+" "+
-				comparators.get(this.comparator)+" ";
+		StringBuilder criteriaString=new StringBuilder();
+		criteriaString.append(this.column.getTableName()).append(".").append(this.column.getColumnName()).append(" ")
+		.append(comparators.get(this.comparator)).append(" ");
 		if(dataCollection!=null) {
 		   if(dataCollection.size()==1) {
-
-			     return criteriaString+"?";
-				
-//				  Object data=dataCollection.get(0); 
-//				  if(data instanceof String) { 
-//					  return criteriaString+"\""+SanitizeString.escapeQuotes((String)data)+"\""; }else
-//				  if(data instanceof Long) { 
-//					  return criteriaString+((Long)data); 
-//				  }else if(data instanceof Integer) { 
-//					  return criteriaString+((Integer)data); 
-//			      }else if(data instanceof Boolean) {
-//			    	  return criteriaString+((Boolean)data); 
-//			      }
-				 
+			      criteriaString.append("?");			 
 		   }else {
-			    criteriaString+="(";
+			    criteriaString.append("(");
 				for(int i=0;i<dataCollection.size();i++) {
-					
-					/*
-					 * if(dataCollection.get(i) instanceof String) {
-					 * criteriaString+="\""+SanitizeString.escapeQuotes((String)dataCollection.get(i
-					 * ))+"\""; }else if(dataCollection.get(i) instanceof Long) {
-					 * criteriaString+=(Long)dataCollection.get(i); }else if(dataCollection.get(i)
-					 * instanceof Integer) { criteriaString+=(Integer)dataCollection.get(i); }else
-					 * if(dataCollection.get(i) instanceof Boolean) {
-					 * criteriaString+=(Boolean)dataCollection.get(i); }else
-					 * if(dataCollection.get(i) instanceof Character){
-					 * criteriaString+="\""+(Character)dataCollection.get(i)+"\""; }
-					 */
-					criteriaString+="?";
+					criteriaString.append("?");
 					if(i!=dataCollection.size()-1) {
-						criteriaString+=",";
+						criteriaString.append(",");
 					}else {
-						criteriaString+=")";
+						criteriaString.append(")");
 					}
 				}
-				return criteriaString;
 		   }
 		}
 		
-		return criteriaString;
+		if(subQuery!=null) {
+			criteriaString.append("(");
+			criteriaString.append(subQuery.getSelectQueryString());
+			criteriaString.append(")");
+		}
+		
+		return criteriaString.toString();
 	}
 	
 	
 	public String getCriteria() {
-		String currentCriteria="( ";
+		StringBuilder currentCriteria=new StringBuilder("( ");
 		if(rightAndCriteria!=null) {
-			 currentCriteria+=getCriteriaString()+" "
-		+conditions.get(Criteria.AND)+" "+rightAndCriteria.getCriteria()+" )";
+			 currentCriteria.append(getCriteriaString()).append(" ")
+			 .append(conditions.get(Criteria.AND)).append(" ").append(rightAndCriteria.getCriteria()).append(" )");
 		}else if(rightOrCriteria!=null) {
-			currentCriteria+=getCriteriaString()+" "
-						+conditions.get(Criteria.OR)+" "+rightOrCriteria.getCriteria()+" )";
+			currentCriteria.append(getCriteriaString()).append(" ")
+			.append(conditions.get(Criteria.OR)).append(" ").append(rightOrCriteria.getCriteria()).append(" )");
 		}else {
-			currentCriteria+=getCriteriaString()+" )";
+			currentCriteria.append(getCriteriaString()).append(" )");
 		}
-		return currentCriteria;
+		return currentCriteria.toString();
 	}
 	
 	public ArrayList<Object> getValuesToBePlaced(){
@@ -190,6 +179,12 @@ public class Criteria {
 				}
 		   }
 	    }
+		
+		if(subQuery!=null) {
+			if(subQuery.getCriteria()!=null) {
+				subQuery.getCriteria().addValues(values);
+			}
+		}
 		
 		if(rightAndCriteria!=null) {
 		      rightAndCriteria.addValues(values);

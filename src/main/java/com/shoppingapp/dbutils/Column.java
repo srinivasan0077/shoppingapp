@@ -4,6 +4,7 @@ public class Column {
 
 	private String tableName;
 	private String columnName;
+	private String aliasName;
 	private Object value;
 	
 	public Column(String tableName, String columnName) {
@@ -37,6 +38,15 @@ public class Column {
 	public void setValue(Object value) {
 		this.value = value;
 	}
+
+	public String getAliasName() {
+		return aliasName;
+	}
+
+	public void setAliasName(String aliasName) {
+		this.aliasName = aliasName;
+	}
+
 	
 	
 }

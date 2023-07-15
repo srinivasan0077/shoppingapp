@@ -46,30 +46,30 @@ public class UpdateQuery {
 	}
 	
 	public String getUpdateQueryString() {
-		String updateQueryString="update "+tableName+" ";
+		StringBuilder updateQueryString=new StringBuilder("update ").append(tableName).append(" ");
 		
 		if(joinList!=null) {
 			for(int i=0;i<joinList.size();i++) {
-				updateQueryString+=joinList.get(i).getJoinString()+" ";
+				updateQueryString.append(joinList.get(i).getJoinString()).append(" ");
 			}
 		}
-		updateQueryString+="set ";
+		updateQueryString.append("set ");
 		for(int i=0;i<fields.size();i++) {
 			Column column=fields.get(i);
-			updateQueryString+=column.getTableName()+"."+column.getColumnName()+"=?";
+			updateQueryString.append(column.getTableName()).append(".").append(column.getColumnName()).append("=?");
 			if(i!=fields.size()-1) {
-				updateQueryString+=",";
+				updateQueryString.append(",");
 			}
 		}
 
-		updateQueryString+=" ";
+		updateQueryString.append(" ");
 		
 		if(criteria!=null) {
-			updateQueryString+="where "+criteria.getCriteria()+" ";
+			updateQueryString.append("where ").append(criteria.getCriteria()).append(" ");
 		}
 		
-		updateQueryString+=";";
-		return updateQueryString;
+		updateQueryString.append(";");
+		return updateQueryString.toString();
 	}
 	
 	public static void main(String args[]) {

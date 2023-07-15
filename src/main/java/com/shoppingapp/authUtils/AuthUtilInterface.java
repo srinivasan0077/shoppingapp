@@ -15,9 +15,9 @@ public interface AuthUtilInterface {
 	
 	public String createUser(User user);
 	
-	public String updateUser(User user);
+	public void updateUser(User user) throws Exception;
 	
-	public String authenticate(User user);
+	public void authenticate(User user) throws Exception;
 	
 	public String checkUser(String email);
 	

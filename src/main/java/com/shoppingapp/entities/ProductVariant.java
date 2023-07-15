@@ -1,6 +1,8 @@
 package com.shoppingapp.entities;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
@@ -27,8 +29,22 @@ public class ProductVariant {
 	@Min(value = 1,message = "Price should have minimum value of 1")
 	private int price;
 	
+	private boolean isActive=false;
+	
 	private String imageUrl;
-	private ArrayList<String> images;
+	
+	private ArrayList<VariantImage> images;
+	private ArrayList<Inventory> inventories;
+	
+	
+    public static Map<String,String> classDbNameMapForSearch;
+	
+	static {
+		classDbNameMapForSearch=new HashMap<>();
+		classDbNameMapForSearch.put("variantId","id");
+		classDbNameMapForSearch.put("name","name");
+		classDbNameMapForSearch.put("item","itemId");
+	}
 	
 	public Long getVariantId() {
 		return variantId;
@@ -72,17 +88,30 @@ public class ProductVariant {
 		return "ProductVariant [variantId=" + variantId + ", item=" + item + ", size=" + size + ", color=" + color
 				+ ", price=" + price + ", imageUrl=" + imageUrl + "]";
 	}
-	public ArrayList<String> getImages() {
-		return images;
-	}
-	public void setImages(ArrayList<String> images) {
-		this.images = images;
-	}
+	
 	public String getName() {
 		return name;
 	}
 	public void setName(String name) {
 		this.name = name;
+	}
+	public ArrayList<VariantImage> getImages() {
+		return images;
+	}
+	public void setImages(ArrayList<VariantImage> images) {
+		this.images = images;
+	}
+	public ArrayList<Inventory> getInventories() {
+		return inventories;
+	}
+	public void setInventories(ArrayList<Inventory> inventories) {
+		this.inventories = inventories;
+	}
+	public boolean isActive() {
+		return isActive;
+	}
+	public void setActive(boolean isActive) {
+		this.isActive = isActive;
 	}
 	
 	

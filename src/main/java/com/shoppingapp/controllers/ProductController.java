@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.shoppingapp.dbutils.Criteria;
+import com.shoppingapp.entities.BannerImage;
 import com.shoppingapp.entities.Category;
 import com.shoppingapp.entities.Color;
 import com.shoppingapp.entities.GetInfo;
@@ -31,6 +32,7 @@ import com.shoppingapp.entities.Inventory;
 import com.shoppingapp.entities.Product;
 import com.shoppingapp.entities.ProductItem;
 import com.shoppingapp.entities.ProductVariant;
+import com.shoppingapp.entities.Relation;
 import com.shoppingapp.entities.Response;
 import com.shoppingapp.entities.Size;
 import com.shoppingapp.entities.Topic;
@@ -51,7 +53,7 @@ import javax.validation.Valid;
 @Controller
 public class ProductController {
 
-	private static final Logger logger=LogManager.getLogger(ProductManagementUtil.class);
+	private static final Logger logger=LogManager.getLogger(ProductController.class);
 	
 	@RequestMapping(path={"/","/home"},method=RequestMethod.GET)
 	public String getHome() {
@@ -63,13 +65,84 @@ public class ProductController {
 		return "category";
 	}
 	
-	@RequestMapping(path={"/admin/api/colors"},method =RequestMethod.GET)
+	@RequestMapping(path={"/admin/api/colors/list"},method =RequestMethod.POST)
 	@ResponseBody
-	public ArrayList<Color> getColors() {
+	public ResponseEntity<Response> getColors(@Valid @RequestBody GetInfo info,BindingResult validationResult) {
+		if(validationResult.hasErrors()) {
+			FieldError error=validationResult.getFieldError();
+			return  new ResponseEntity<Response>(new Response(error.getDefaultMessage(),Response.BAD_REQUEST, null),HttpStatus.BAD_REQUEST);
+		}
+        ResponseEntity<Response> responseJSON;
 		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
-		ArrayList<Color> colors=util.getColors();
-		util.closeConnection();
-		return colors;
+		try {
+			responseJSON=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,util.getColors(info)),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			responseJSON=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
+		}finally {
+			util.closeConnection();
+		}
+		return responseJSON;
+	}
+	
+	@RequestMapping(path={"/admin/api/colors/{id}"},method =RequestMethod.GET)
+	@ResponseBody
+	public ResponseEntity<Response> getColorById(@PathVariable Long id) {
+
+        ResponseEntity<Response> responseJSON;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		try {
+			responseJSON=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,util.getColorById(id)),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			responseJSON=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
+		}finally {
+			util.closeConnection();
+		}
+		return responseJSON;
+	}
+	
+	@RequestMapping(path={"/admin/api/colors"},method =RequestMethod.POST)
+	@ResponseBody
+	public ResponseEntity<Response> createColor(@Valid @RequestBody Color color,BindingResult validationResult) {
+		if(validationResult.hasErrors()) {
+			FieldError error=validationResult.getFieldError();
+			return  new ResponseEntity<Response>(new Response(error.getDefaultMessage(),Response.BAD_REQUEST, null),HttpStatus.BAD_REQUEST);
+		}
+        ResponseEntity<Response> responseJSON;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		try {
+			util.createColor(color);
+			responseJSON=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,null),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			responseJSON=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
+		}finally {
+			util.closeConnection();
+		}
+		return responseJSON;
+	}
+	
+	@RequestMapping(path={"/admin/api/colors/{id}"},method =RequestMethod.PUT)
+	@ResponseBody
+	public ResponseEntity<Response> editColor(@PathVariable Long id,@Valid @RequestBody Color color,BindingResult validationResult) {
+		if(validationResult.hasErrors()) {
+			FieldError error=validationResult.getFieldError();
+			return  new ResponseEntity<Response>(new Response(error.getDefaultMessage(),Response.BAD_REQUEST, null),HttpStatus.BAD_REQUEST);
+		}
+        ResponseEntity<Response> responseJSON;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		try {
+			color.setColorId(id);
+			util.editColor(color);
+			responseJSON=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,null),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			responseJSON=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
+		}finally {
+			util.closeConnection();
+		}
+		return responseJSON;
 	}
 	
 	@RequestMapping(path={"/admin/api/colors/search"},method =RequestMethod.GET)
@@ -89,23 +162,6 @@ public class ProductController {
 		return responseJSON;
 	}
 	
-	@RequestMapping(path={"/admin/api/sizes"},method =RequestMethod.GET)
-	@ResponseBody
-	public ArrayList<Size> getSizes(@RequestParam("input") String jsonInput) {
-		ArrayList<Size> sizes=null;
-		JSONObject jsonObject=new JSONObject(jsonInput);
-		if(jsonObject.has("productId")) {
-			ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
-			try {
-			    sizes=util.getSizesByProductId(jsonObject.getLong("productId"));
-			}catch (Exception e) {
-				logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
-			}finally {
-			   util.closeConnection();
-			}
-		}
-		return sizes;
-	}
 	
 	@RequestMapping(path={"/admin/api/products/{id}/sizes"},method =RequestMethod.GET)
 	@ResponseBody
@@ -117,7 +173,7 @@ public class ProductController {
 			responseJSON=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,util.getSizesByProductId(id)),HttpStatus.OK);
 		}catch (Exception e) {
 			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
-			responseJSON=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
+			responseJSON=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),HttpStatus.INTERNAL_SERVER_ERROR);
 		}finally {
 			util.closeConnection();
 		}
@@ -138,7 +194,7 @@ public class ProductController {
 			responseJSON=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,size),HttpStatus.OK);
 		}catch (Exception e) {
 			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
-			responseJSON=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
+			responseJSON=new ResponseEntity<Response>(new Response(e.getMessage(),Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
 		}finally {
 			util.closeConnection();
 		}
@@ -154,61 +210,62 @@ public class ProductController {
 				FieldError error=validationResult.getFieldError();
 				return  new ResponseEntity<Response>(new Response(error.getDefaultMessage(),Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
 			}
-			String result=util.createSize(size);
-			if(result.equals(ProductManagementInterface.CREATED)) {
-				return new ResponseEntity<Response>(new Response("Successfully Created!",Response.SUCCESS,null),HttpStatus.OK);
-			}else {
-				if(result.equals(ProductManagementInterface.EXIST)) {
-					return  new ResponseEntity<Response>(new Response("Size already Exist!",Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
-				}
-				
-			}
+			util.createSize(size);
+			return new ResponseEntity<Response>(new Response("Successfully Created!",Response.SUCCESS,null),HttpStatus.OK);
+			
+		}catch (ExceptionCause e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			return new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),e.getErrorCode());
 		}catch (Exception e) {
 			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			return  new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
 		}finally {
 			util.closeConnection();
 		}
-		return  new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+	
 	}
 	
 	@RequestMapping(path={"/admin/api/sizes"},method =RequestMethod.PUT)
 	@ResponseBody
 	public ResponseEntity<Response> putSize(@Valid @RequestBody Size size,BindingResult validationResult) {
+		if(validationResult.hasErrors()) {
+			FieldError error=validationResult.getFieldError();
+			return  new ResponseEntity<Response>(new Response(error.getDefaultMessage(),Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
+		}
+
 		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
 		try {
-			if(validationResult.hasErrors()) {
-				FieldError error=validationResult.getFieldError();
-				return  new ResponseEntity<Response>(new Response(error.getDefaultMessage(),Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
-			}
 			if(size.getSizeId()==null) {
-				return  new ResponseEntity<Response>(new Response("Cannot edit size without id!",Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
+				throw new ExceptionCause("Cannot edit size without id!", HttpStatus.BAD_REQUEST);
 			}
+			util.editSize(size);
+			return  new ResponseEntity<Response>(new Response("Successfully Edited!",Response.SUCCESS,null),HttpStatus.OK);
 			
-			String result=util.editSize(size);
-			
-			if(result.equals(ProductManagementInterface.SUCCESS)) {
-				return  new ResponseEntity<Response>(new Response("Successfully Edited!",Response.SUCCESS,null),HttpStatus.OK);
-			}else {
-				if(result.equals(ProductManagementInterface.NOT_EXIST)) {
-					return  new ResponseEntity<Response>(new Response("Size not exist!",Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
-				}
-				
-			}
+		}catch (ExceptionCause e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			return new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),e.getErrorCode());
 		}catch (Exception e) {
 			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			return  new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
 		}finally {
 			util.closeConnection();
 		}
-		return  new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.BAD_REQUEST);
 	}
 	
 	@RequestMapping(path={"/admin/api/categories"},method =RequestMethod.GET)
 	@ResponseBody
-	public ArrayList<Category> getCategories() {
+	public ResponseEntity<Response> getCategories() {
+		ResponseEntity<Response> responseJSON;
 		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
-		ArrayList<Category> categories=util.getCategories();
-		util.closeConnection();
-		return categories;
+		try {
+			responseJSON=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,util.getCategories()),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			responseJSON=new ResponseEntity<Response>(new Response(e.getMessage(),Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		return responseJSON;
 	}
 	
 	@RequestMapping(path={"/admin/api/categories/{id}"},method =RequestMethod.GET)
@@ -220,12 +277,15 @@ public class ProductController {
 		try {
 			Category category=util.getCategoryBy("id",id,Criteria.EQUAL);
 			if(category==null) {
-				throw new Exception("Invalid Id passed");
+				throw new ExceptionCause("Invalid Id passed",HttpStatus.BAD_REQUEST);
 			}
 			responseJSON=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,category),HttpStatus.OK);
+		}catch (ExceptionCause e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			responseJSON=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),e.getErrorCode());
 		}catch (Exception e) {
 			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
-			responseJSON=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),HttpStatus.BAD_REQUEST);
+			responseJSON=new ResponseEntity<Response>(new Response(e.getMessage(),Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
 		}finally {
 			util.closeConnection();
 		}
@@ -373,6 +433,8 @@ public class ProductController {
 		
 	}
 	
+	
+	
 	@RequestMapping(path={"/admin/productItem"},method=RequestMethod.GET)
 	public String getProductItem() {
 		return "productItem";
@@ -410,6 +472,28 @@ public class ProductController {
 		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
 		try {
 			response= new ResponseEntity<Response>(new Response("Get Item By ID Successful!",Response.SUCCESS,util.getProductItemBy("id", id)),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	}
+	
+	@RequestMapping(path={"/admin/api/items/{id}/toggle"},method=RequestMethod.GET)
+	@ResponseBody
+	public ResponseEntity<Response> toggleItem(@PathVariable Long id) {
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		try {
+			util.enableOrDisableProductItem(id);
+			response= new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,null),HttpStatus.OK);
+		}catch (ExceptionCause e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),e.getErrorCode());
 		}catch (Exception e) {
 			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
 			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
@@ -487,7 +571,31 @@ public class ProductController {
 		ResponseEntity<Response> response;
 		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
 		try {
-			response= new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,util.getProductVariants(itemId, info)),HttpStatus.OK);
+			info.setFilterBy("item");
+			info.setFilterValue(itemId);
+			response= new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,util.getProductVariants(info)),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	}
+	
+	@RequestMapping(path={"/admin/api/variants/list"},method=RequestMethod.POST,consumes = {"application/json;charset=utf-8"})
+	@ResponseBody
+	public ResponseEntity<Response> searchVariants(@Valid @RequestBody GetInfo info,BindingResult validationResult) {
+		if(validationResult.hasErrors()) {
+			FieldError error=validationResult.getFieldError();
+			return  new ResponseEntity<Response>(new Response(error.getDefaultMessage(),Response.BAD_REQUEST, null),HttpStatus.BAD_REQUEST);
+		}
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		try {
+			response= new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,util.getProductVariants(info)),HttpStatus.OK);
 		}catch (Exception e) {
 			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
 			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
@@ -571,6 +679,28 @@ public class ProductController {
         return response;
 	}
 	
+	@RequestMapping(path={"/admin/api/variants/{id}/toggle"},method=RequestMethod.GET)
+	@ResponseBody
+	public ResponseEntity<Response> toggleVariant(@PathVariable Long id) {
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		try {
+			util.enableOrDisableProductVariant(id);
+			response= new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,null),HttpStatus.OK);
+		}catch (ExceptionCause e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),e.getErrorCode());
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	}
+	
 	@RequestMapping(path={"/admin/api/variants/{id}/images"},method=RequestMethod.GET)
 	@ResponseBody
 	public ResponseEntity<Response> getVariantImages(@PathVariable Long id) {
@@ -598,7 +728,7 @@ public class ProductController {
 		
 		ResponseEntity<Response> response;
 		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
-		String fileToBeDelted=null;
+		String fileToBeDeleted=null;
 		boolean exception=false;
 		
 		try {
@@ -611,7 +741,7 @@ public class ProductController {
 			 byte bytes[]=file.getBytes();
 			
 		     String tomcatBase = System.getProperty("catalina.base")+"\\wtpwebapps\\shoppingapp\\resources\\img";
-		     String hashedFileName=EncryptionUtil.getSHA1(id+imageInfoJson.getString("name")+file.getOriginalFilename())+getExtension(file.getContentType());
+		     String hashedFileName=EncryptionUtil.getSHA1(id+":"+imageInfoJson.getString("name")+file.getOriginalFilename())+getExtension(file.getContentType());
 			 String filePath=tomcatBase+File.separator+hashedFileName;
 			 File newFile=new File(filePath);
 			 BufferedOutputStream stream = new BufferedOutputStream(
@@ -619,7 +749,7 @@ public class ProductController {
 			 stream.write(bytes);
 			 stream.flush();
 			 stream.close();
-			 fileToBeDelted=filePath;
+			 fileToBeDeleted=filePath;
 			 
 			 System.out.println(filePath);
 			 
@@ -645,8 +775,8 @@ public class ProductController {
 		}finally {
 			
 			if(exception) {
-				if(fileToBeDelted!=null) {
-					util.deleteImages(fileToBeDelted);
+				if(fileToBeDeleted!=null) {
+					util.deleteImages(fileToBeDeleted);
 				}
 			}
 			util.closeConnection();
@@ -897,7 +1027,7 @@ public class ProductController {
 	
 	}
 	
-	@RequestMapping(path={"/admin/api/topics/{id}"},method =RequestMethod.POST)
+	@RequestMapping(path={"/admin/api/topics/{id}"},method =RequestMethod.PUT)
 	@ResponseBody
 	public ResponseEntity<Response> editTopic(@PathVariable Long id,@Valid @RequestBody Topic topic,BindingResult validationResult) {
 		
@@ -927,6 +1057,258 @@ public class ProductController {
 	
 	}
 	
+	@RequestMapping(path={"/admin/api/topics/{id}/relations"},method =RequestMethod.GET)
+	@ResponseBody
+	public ResponseEntity<Response> getTopicItemRelationsByTopicId(@PathVariable Long id) {
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		
+		try {
+			 response=new ResponseEntity<Response>(new Response("Edit Operation Successful!",Response.SUCCESS,util.getProductVariantsByTopicId(id)),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	
+	}
+	
+	@RequestMapping(path={"/admin/api/topics/{id}"},method =RequestMethod.GET)
+	@ResponseBody
+	public ResponseEntity<Response> getTopicById(@PathVariable Long id) {
+		
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		
+		try {
+			 response=new ResponseEntity<Response>(new Response("Edit Operation Successful!",Response.SUCCESS, util.getTopicById(id)),HttpStatus.OK);
+		}catch (ExceptionCause e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),e.getErrorCode());;
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	
+	}
+	
+	@RequestMapping(path={"/admin/api/topic_variant_relation"},method =RequestMethod.POST)
+	@ResponseBody
+	public ResponseEntity<Response> addVariantToTopic(@Valid @RequestBody Relation relation,BindingResult validationResult) {
+		
+		if(validationResult.hasErrors()) {
+			FieldError error=validationResult.getFieldError();
+			return  new ResponseEntity<Response>(new Response(error.getDefaultMessage(),Response.BAD_REQUEST, null),HttpStatus.BAD_REQUEST);
+		}
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		
+		try {
+			 util.addProductVariantToTopic(relation);
+			 response=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS, null),HttpStatus.OK);
+		}catch (ExceptionCause e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),e.getErrorCode());;
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	
+	}
+	
+	@RequestMapping(path={"/admin/api/topic_variant_relation"},method =RequestMethod.DELETE)
+	@ResponseBody
+	public ResponseEntity<Response> removeVariantFromTopic(@Valid @RequestBody Relation relation,BindingResult validationResult) {
+		
+		if(validationResult.hasErrors()) {
+			FieldError error=validationResult.getFieldError();
+			return  new ResponseEntity<Response>(new Response(error.getDefaultMessage(),Response.BAD_REQUEST, null),HttpStatus.BAD_REQUEST);
+		}
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		
+		try {
+			 util.removeTopicVariantRelation(relation);
+			 response=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS, null),HttpStatus.OK);
+		}catch (ExceptionCause e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),e.getErrorCode());;
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	
+	}
+	
+	//banners
+	@RequestMapping(path={"/admin/api/banners"},method=RequestMethod.POST,consumes = {"multipart/form-data"})
+	@ResponseBody
+	public ResponseEntity<Response> addBannerImages(@RequestParam("imageInfo") String imageInfo
+			,@RequestParam("image") MultipartFile file) {
+		 
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		String fileToBeDeleted=null;
+		boolean exception=false;
+		
+		try {
+			 JSONObject imageInfoJson=new JSONObject(imageInfo);
+			 
+			 validateBannerImageUpload(imageInfoJson,file,util);
+			 
+			 //Write Image
+			 byte bytes[]=file.getBytes();
+			
+		     String tomcatBase = System.getProperty("catalina.base")+"\\wtpwebapps\\shoppingapp\\resources\\img";
+		     String hashedFileName=EncryptionUtil.getSHA1("banner"+":"+imageInfoJson.getString("name")+file.getOriginalFilename())+getExtension(file.getContentType());
+			 String filePath=tomcatBase+File.separator+hashedFileName;
+			 File newFile=new File(filePath);
+			 BufferedOutputStream stream = new BufferedOutputStream(
+					new FileOutputStream(newFile));
+			 stream.write(bytes);
+			 stream.flush();
+			 stream.close();
+			 fileToBeDeleted=filePath;
+			 
+			 System.out.println(filePath);
+			 
+			 //Persist Image Info
+			 BannerImage bannerImage=new BannerImage();
+			 bannerImage.setName(imageInfoJson.getString("name"));
+			 bannerImage.setOrd(imageInfoJson.getInt("ord"));
+			 bannerImage.setUrl(hashedFileName);
+
+			 util.createBanner(bannerImage);
+				
+			 response=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS, null),HttpStatus.OK);
+		}catch (ExceptionCause e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),e.getErrorCode());
+			exception=true;
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+			exception=true;
+		}finally {
+			
+			if(exception) {
+				if(fileToBeDeleted!=null) {
+					util.deleteImages(fileToBeDeleted);
+				}
+			}
+			util.closeConnection();
+		}
+		
+        return response;
+	}
+	
+	@RequestMapping(path={"/admin/api/banners"},method=RequestMethod.GET)
+	@ResponseBody
+	public ResponseEntity<Response> getBannerImages() {
+		 
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		try {
+			 response=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS, util.getBannerImages()),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	}
+	
+	@RequestMapping(path={"/admin/api/banners/{id}"},method=RequestMethod.DELETE)
+	@ResponseBody
+	public ResponseEntity<Response> deleteBannerImages(@PathVariable Long id) {
+		 
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		try {
+			 util.deleteBannerImageById(id);
+			 response=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS, null),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	}
+	
+	@RequestMapping(path={"/admin/api/banners/{id}"},method=RequestMethod.PUT)
+	@ResponseBody
+	public ResponseEntity<Response> editBannerImage(@PathVariable Long id,@Valid @RequestBody BannerImage image,BindingResult validationResult) {
+		 
+		if(validationResult.hasErrors()) {
+			FieldError error=validationResult.getFieldError();
+			return  new ResponseEntity<Response>(new Response(error.getDefaultMessage(),Response.BAD_REQUEST, null),HttpStatus.BAD_REQUEST);
+		}
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		
+		try {
+			 image.setImageId(id);
+			 util.editBannerImage(image);
+			 response=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS, null),HttpStatus.OK);
+		}catch (ExceptionCause e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response=new ResponseEntity<Response>(new Response(e.getMessage(),Response.BAD_REQUEST,null),e.getErrorCode());;
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	}
+	
+	@RequestMapping(path={"/admin/api/banners/{id}"},method=RequestMethod.GET)
+	@ResponseBody
+	public ResponseEntity<Response> getBannerImageById(@PathVariable Long id) {
+		 
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		try {
+			 response=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS, util.getBannerImageById(id)),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	}
+	
 	private String getExtension(String input) {
 		String[] split=input.split("/");
 		return "."+split[1];		
@@ -937,8 +1319,31 @@ public class ProductController {
 			 throw new ExceptionCause("Image name cannot be null",HttpStatus.BAD_REQUEST);
 		 }
 		 
+		 if(imageInfo.getString("name").strip().length()==0) {
+			 throw new ExceptionCause("Image name is not valid",HttpStatus.BAD_REQUEST);
+		 }
+		 
 		 if(util.getVariantImageByNameAndVariantId(imageInfo.getLong("variantId"), imageInfo.getString("name"))!=null) {
 			 throw new ExceptionCause("Image name should be unique under a variant",HttpStatus.BAD_REQUEST);
+		 }
+		 
+		 if(image==null || image.getBytes().length==0) {
+			 throw new ExceptionCause("Attached Image not found!",HttpStatus.BAD_REQUEST);
+		 }
+			 
+	}
+	
+	private void validateBannerImageUpload(JSONObject imageInfo,MultipartFile image,ProductManagementInterface util) throws Exception {
+		 if(imageInfo.getString("name")==null) {
+			 throw new ExceptionCause("Image name cannot be null",HttpStatus.BAD_REQUEST);
+		 }
+		 
+		 if(imageInfo.getString("name").strip().length()==0) {
+			 throw new ExceptionCause("Image name is not valid",HttpStatus.BAD_REQUEST);
+		 }
+		 
+		 if(util.getBannerImageByName(imageInfo.getString("name"))!=null) {
+			 throw new ExceptionCause("Image name should be unique",HttpStatus.BAD_REQUEST);
 		 }
 		 
 		 if(image==null || image.getBytes().length==0) {

@@ -1,14 +1,13 @@
 package com.shoppingapp.filters;
 
 
-import org.json.JSONObject;
+
 
 import com.shoppingapp.entities.Operations;
 import com.shoppingapp.entities.Operations.Operation;
+import com.shoppingapp.entities.Response;
 import com.shoppingapp.entities.User;
-import com.shoppingapp.utils.ResponseUtil;
-
-
+import com.shoppingapp.utils.ThreadLocalUtil;
 
 import java.io.IOException;
 import java.util.regex.Pattern;
@@ -39,6 +38,22 @@ public class AuthFilter extends HttpFilter implements Filter {
 	public void destroy() {
 		
 	}
+	
+	private boolean validateAuthHttpRequests(HttpServletRequest req,HttpServletResponse res) {
+		 HttpSession session=req.getSession();
+		 User user=(User)session.getAttribute("user");
+		 String csrfToken=(String)session.getAttribute("csrfToken");
+		 String csrfHeader=req.getHeader("csrf_token");
+		 if(user == null || !user.isAuthenticated() || csrfToken==null) {
+			 return false;
+		 }
+		 
+		 if(csrfHeader==null || !csrfHeader.equals(csrfToken)) {
+			 return false;
+		 }
+		 
+		 return true;
+	}
 
 	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
 		System.out.println("In Auth Filter");
@@ -53,48 +68,53 @@ public class AuthFilter extends HttpFilter implements Filter {
 		System.out.println(uri.length);
 		System.out.println(req.getRemoteAddr());
 		
+		//setting logged in user to threadlocal
+		User user=(User)session.getAttribute("user");
+		if(user!=null && user.isAuthenticated()) {
+			ThreadLocalUtil.currentUser.set(user);
+		}
+		
 		if(uri.length>0 && !"OPTIONS".equals(req.getMethod())) {
 			
 			if(Pattern.matches(jspRegex,uri[uri.length-1])) {
 				res.setStatus(404);
 				res.addHeader("Access-Control-Allow-Origin", "http://localhost:3000");
 				res.addHeader("Access-Control-Allow-Credentials", "true");
-				res.getWriter().print("{\"map\":"+ResponseUtil.buildNotFoundResponse("Not Found.").toString()+"}");
+				Response responseJSON=new Response("Requested url not found!",Response.NOT_FOUND, null);
+				res.getWriter().print(responseJSON.toString());
 				return;
 			}
 			
 			if(uri.length>=3) {
 				if(Pattern.matches("login|signup",uri[2])) {
-					User user=(User)session.getAttribute("user");
 					if(user != null && user.isAuthenticated()) {
 						res.setStatus(200);
 						res.addHeader("Access-Control-Allow-Origin", "http://localhost:3000");
 						res.addHeader("Access-Control-Allow-Credentials", "true");
-						res.getWriter().print("{\"map\":"+ResponseUtil.buildAlreadyLoggedInResponse("Already Logged In.").toString()+"}");
-						
+						Response responseJSON=new Response("Successfully Logged In!",Response.SUCCESS, null);
+						res.getWriter().print(responseJSON.toString());
 						return;
 					}
 				}
 				
 				if(Pattern.matches(authUrls,uri[2] )) {
-					User user=(User)session.getAttribute("user");
-					if(user == null || !user.isAuthenticated()) {
+					if(!validateAuthHttpRequests(req, res)) {
 						res.setStatus(401);
 						res.addHeader("Access-Control-Allow-Origin", "http://localhost:3000");
 						res.addHeader("Access-Control-Allow-Credentials", "true");
-						res.getWriter().print("{\"map\":"+ResponseUtil.buildUnauthorizedResponse("Unauthorized Access").toString()+"}");
+						Response responseJSON=new Response("Unauthorized!",Response.UNAUTHORIZED, null);
+						res.getWriter().print(responseJSON.toString());
 						return;
 					}
 				}
 				
-				if(Pattern.matches(uri[2], pattern)) {
+				if(Pattern.matches(pattern,uri[2])) {
 					Operation op=Operations.urlOpMap.get(uri[2]);
 					if(!op.validate(session)) {
-						JSONObject responseJSON=op.sendResponse(session);
 						res.setStatus(400);
 						res.addHeader("Access-Control-Allow-Origin", "http://localhost:3000");
 						res.addHeader("Access-Control-Allow-Credentials", "true");
-						res.getWriter().print("{\"map\":"+responseJSON.toString()+"}");
+						res.getWriter().print(op.sendResponse(session).toString());
 						return;
 					}
 				}

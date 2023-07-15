@@ -27,6 +27,7 @@ import com.shoppingapp.dbutils.Row;
 import com.shoppingapp.dbutils.SelectQuery;
 import com.shoppingapp.dbutils.TableHolder;
 import com.shoppingapp.dbutils.UpdateQuery;
+import com.shoppingapp.entities.BannerImage;
 import com.shoppingapp.entities.Category;
 import com.shoppingapp.entities.Color;
 import com.shoppingapp.entities.GetInfo;
@@ -34,6 +35,7 @@ import com.shoppingapp.entities.Inventory;
 import com.shoppingapp.entities.Product;
 import com.shoppingapp.entities.ProductItem;
 import com.shoppingapp.entities.ProductVariant;
+import com.shoppingapp.entities.Relation;
 import com.shoppingapp.entities.Size;
 import com.shoppingapp.entities.Topic;
 import com.shoppingapp.entities.VariantImage;
@@ -62,7 +64,8 @@ public class ProductManagementUtil implements ProductManagementInterface {
 	public String COLORS="colors";
 	public String SIZE="size";
 	public String TOPICS="topics";
-	public String TOPIC_ITEM_RELATION="topic_item_relation";
+	public String TOPIC_VARIANT_RELATION="topic_variant_relation";
+	public String BANNER_IMAGES="banner_images";
 	
 	private static final Logger logger=LogManager.getLogger(ProductManagementUtil.class);
 	
@@ -71,6 +74,14 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		this.adapter=adapter;
 	}
 
+	public void closeConnection() {
+		try {
+			adapter.closeConnection();
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
 	public String createCategories(ArrayList<Category> categories) {
 		
 		try {
@@ -140,27 +151,24 @@ public class ProductManagementUtil implements ProductManagementInterface {
 	}
 
 
-	public ArrayList<Category> getCategories(){
+	public ArrayList<Category> getCategories() throws Exception{
 		ArrayList<Category> categories=new ArrayList<Category>();
-		try {
-			SelectQuery sq=new SelectQuery(PRODUCT_CATEGORY);
-			DataHolder dh=adapter.executeQuery(sq);
-			TableHolder th=dh.getTable(PRODUCT_CATEGORY);
-			if(th!=null) {
-				Map<Integer,Row> catMap=th.getRows();
-				for(int i=0;i<catMap.size();i++) {
-					Category cat=new Category();
-					Row row=catMap.get(i);
-					cat.setProductTypeId((Long)row.get("id"));
-					cat.setProductTypeName((String)row.get("name"));
-					cat.setDescription((String)row.get("description"));
-					cat.setCreatedAt((Long)row.get("createdat"));
-					cat.setModifiedAt((Long)row.get("modifiedat"));
-					categories.add(cat);
-				}
+		
+		SelectQuery sq=new SelectQuery(PRODUCT_CATEGORY);
+		DataHolder dh=adapter.executeQuery(sq);
+		TableHolder th=dh.getTable(PRODUCT_CATEGORY);
+		if(th!=null) {
+			Map<Integer,Row> catMap=th.getRows();
+			for(int i=0;i<catMap.size();i++) {
+				Category cat=new Category();
+				Row row=catMap.get(i);
+				cat.setProductTypeId((Long)row.get("id"));
+				cat.setProductTypeName((String)row.get("name"));
+				cat.setDescription((String)row.get("description"));
+				cat.setCreatedAt((Long)row.get("createdat"));
+				cat.setModifiedAt((Long)row.get("modifiedat"));
+				categories.add(cat);
 			}
-		}catch (Exception e) {
-			e.printStackTrace();
 		}
 		return categories;
 	}
@@ -325,6 +333,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		cols.add(new Column(PRODUCT,"description",product.getDescription()));
 		cols.add(new Column(PRODUCT,"category",product.getProductType().getProductTypeId()));
 		cols.add(new Column(PRODUCT,"modifiedat",new Date().getTime()));
+		cols.add(new Column(PRODUCT,"isHeader",product.isHeader()));
 		uq.setFields(cols);
 		Criteria crit=new Criteria(new Column(PRODUCT,"id"),product.getProductId());
 		crit.setComparator(Criteria.EQUAL);
@@ -356,6 +365,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 				product.setDescription((String)row.get("description"));
 				product.setCreatedAt((Long)row.get("createdat"));
 				product.setModifiedAt((Long)row.get("modifiedat"));
+				product.setHeader((Boolean)row.get("isHeader"));
 				cat.setProductTypeId((Long)row.get("category"));
 				cat.setProductTypeName((String)catRow.get("name"));
 				product.setProductType(cat);
@@ -390,6 +400,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 					product.setDescription((String)row.get("description"));
 					product.setCreatedAt((Long)row.get("createdat"));
 					product.setModifiedAt((Long)row.get("modifiedat"));
+					product.setHeader((Boolean)row.get("isHeader"));
 					cat.setProductTypeId((Long)catRow.get("id"));
 					cat.setProductTypeName((String)catRow.get("name"));
 					cat.setDescription((String)catRow.get("description"));
@@ -552,11 +563,37 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		OrderBy orderBy=new OrderBy(new Column(PRODUCT_ITEM,"id"),Order.ASC);
 		sq.setOrderBy(orderBy);
 
+		Criteria criteria=null;
 		if(info.getPaginationKey()!=null) {
-			Criteria criteria=new Criteria(new Column(PRODUCT_ITEM,"id"), info.getPaginationKey());
+			criteria=new Criteria(new Column(PRODUCT_ITEM,"id"), info.getPaginationKey());
 			criteria.setComparator(Criteria.GREATER);
+		}
+		
+		if(info.getFilterBy()!=null) {
+			int comparator;
+			if(info.getFilterValue() instanceof String) {
+				info.setFilterValue(splitCharactersByPercentage((String)info.getFilterValue()));
+				comparator=Criteria.LIKE;
+			}else {
+				comparator=Criteria.EQUAL;
+			}
+			String dbFieldName=ProductItem.classDbNameMapForSearch.get(info.getFilterBy());
+			if(dbFieldName!=null) {
+				Criteria criteria2=new Criteria(new Column(PRODUCT_ITEM,dbFieldName),info.getFilterValue());
+				criteria2.setComparator(comparator);
+			    if(criteria==null) {
+			    	criteria=criteria2;
+			    }else {
+			    	criteria2.and(criteria);
+			    	criteria=criteria2;
+			    }
+			}
+		}
+		
+		if(criteria!=null) {
 			sq.setCriteria(criteria);
 		}
+		
 		if(info.getRange()!=null) {
 			sq.setLimit(info.getRange());
 		}else {
@@ -599,19 +636,63 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		
 	}
 	
-	//VARIANTS FUNCTIONS
+	public void enableOrDisableProductItem(Long itemId) throws Exception {
+		ProductItem item=getProductItemBy("id", itemId);
+		if(item==null) {
+			throw new ExceptionCause("Item id not exist!", HttpStatus.BAD_REQUEST);
+		}
+        boolean isActive=item.getIsActive();
+        
+		UpdateQuery uq=new UpdateQuery(PRODUCT_ITEM);
+		
+		ArrayList<Column> cols=new ArrayList<Column>();
+        cols.add(new Column(PRODUCT_ITEM, "isActive", isActive?false:true));
+        uq.setFields(cols);
+        
+		Criteria criteria=new Criteria(new Column(PRODUCT_ITEM,"id"),itemId);
+		criteria.setComparator(Criteria.EQUAL);
+		
+		uq.setCriteria(criteria);
+		adapter.updateData(uq);
+	}
 	
-	public ArrayList<ProductVariant> getProductVariants(Long itemId,GetInfo info){
+	//VARIANTS FUNCTIONS
+	public ArrayList<ProductVariant> getProductVariants(GetInfo info){
 		 ArrayList<ProductVariant> variants=new ArrayList<ProductVariant>();
 		 try {
 			 SelectQuery sq=new SelectQuery(PRODUCT_VARIANT);
 			 OrderBy orderBy=new OrderBy(new Column(PRODUCT_VARIANT,"id"),Order.ASC);
 			 sq.setOrderBy(orderBy);
 			 
+			 Criteria criteria=null;
 			 if(info.getPaginationKey()!=null) {
-					Criteria criteria=new Criteria(new Column(PRODUCT_VARIANT,"id"), info.getPaginationKey());
-					criteria.setComparator(Criteria.GREATER);
-					sq.setCriteria(criteria);
+				criteria=new Criteria(new Column(PRODUCT_VARIANT,"id"), info.getPaginationKey());
+				criteria.setComparator(Criteria.GREATER);
+			 }
+			
+			 if(info.getFilterBy()!=null) {
+				int comparator;
+				if(info.getFilterValue() instanceof String) {
+					info.setFilterValue(splitCharactersByPercentage((String)info.getFilterValue()));
+					comparator=Criteria.LIKE;
+				}else {
+					comparator=Criteria.EQUAL;
+				}
+				String dbFieldName=ProductVariant.classDbNameMapForSearch.get(info.getFilterBy());
+				if(dbFieldName!=null) {
+					Criteria criteria2=new Criteria(new Column(PRODUCT_VARIANT,dbFieldName),info.getFilterValue());
+					criteria2.setComparator(comparator);
+				    if(criteria==null) {
+				    	criteria=criteria2;
+				    }else {
+				    	criteria2.and(criteria);
+				    	criteria=criteria2;
+				    }
+				}
+			 }
+			
+			 if(criteria!=null) {
+				sq.setCriteria(criteria);
 			 }
 			 
 			 if(info.getRange()!=null) {
@@ -623,30 +704,37 @@ public class ProductManagementUtil implements ProductManagementInterface {
 			 Join join1=new Join(new Column(PRODUCT_VARIANT,"colorId"),new Column(COLORS,"id"),Join.LEFT_JOIN);
 			 sq.setJoin(join1);
 			 
-			 Criteria criteria=new Criteria(new Column(PRODUCT_VARIANT, "itemId"), itemId);
-			 criteria.setComparator(Criteria.EQUAL);
-			 if(sq.getCriteria()!=null) {
-				 sq.getCriteria().and(criteria);
-			 }else {
-				 sq.setCriteria(criteria);
-			 }
+			 Join join2=new Join(new Column(PRODUCT_VARIANT,"itemId"),new Column(PRODUCT_ITEM,"id"),Join.INNER_JOIN);
+			 sq.addJoin(join2);
 			 
 			 DataHolder dh=adapter.executeQuery(sq);
 			 TableHolder th=dh.getTable(PRODUCT_VARIANT);
 			 TableHolder colorsTh=dh.getTable(COLORS);
+			 TableHolder itemTh=dh.getTable(PRODUCT_ITEM);
 			 
 			 if(th!=null && colorsTh!=null) {
 					Map<Integer,Row> rows=th.getRows();
 					Map<Integer,Row> colorsRow=colorsTh.getRows();
+					Map<Integer,Row> itemRows=itemTh.getRows();
 					for(int i=0;i<rows.size();i++) {
 						Row row=rows.get(i);
 						Row colorRow=colorsRow.get(i);
+						Row itemRow=itemRows.get(0);
 
 						ProductVariant var=new ProductVariant();
 						var.setVariantId((Long)row.get("id"));
 						var.setName((String)row.get("name"));
 						var.setPrice((Integer)row.get("price"));
+						var.setActive((Boolean)row.get("isActive"));
 						var.setColor(new Color((Long)colorRow.get("id"), (String)colorRow.get("name")));
+						ProductItem item=new ProductItem();
+						item.setProductItemId((Long)row.get("itemId"));
+						item.setProductItemName((String)itemRow.get("name"));
+						item.setDescription(itemRow.get("description")==null?"":(String)itemRow.get("description"));
+						item.setModifiedAt((Long)itemRow.get("modifiedat"));
+						item.setCreatedAt((Long)itemRow.get("createdat"));
+						item.setIsActive((Boolean)itemRow.get("isActive"));
+						var.setItem(item);
 					    variants.add(var);
 					}
 				}
@@ -686,25 +774,35 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		try {
 			SelectQuery sq=new SelectQuery(PRODUCT_VARIANT);
 			sq.setCriteria(criteria);
-			Join join1=new Join(new Column(PRODUCT_VARIANT,"colorId"),new Column(COLORS,"id"),Join.LEFT_JOIN);
+			Join join1=new Join(new Column(PRODUCT_VARIANT,"colorId"),new Column(COLORS,"id"),Join.INNER_JOIN);
 		    sq.setJoin(join1);
+		    Join join2=new Join(new Column(PRODUCT_VARIANT,"itemId"),new Column(PRODUCT_ITEM,"id"),Join.INNER_JOIN);
+		    sq.addJoin(join2);
 		    DataHolder dh=adapter.executeQuery(sq);
 			TableHolder th=dh.getTable(PRODUCT_VARIANT);
 			TableHolder colorsTh=dh.getTable(COLORS);
-			
+			TableHolder itemTh=dh.getTable(PRODUCT_ITEM);
 			if(th!=null) {
 				Map<Integer,Row> rows=th.getRows();
-				Map<Integer,Row> colorsRow=colorsTh.getRows();	
+				Map<Integer,Row> colorRows=colorsTh.getRows();	
+				Map<Integer,Row> itemRows=itemTh.getRows();
 				Row row=rows.get(0);
-				Row colorRow=colorsRow.get(0);
+				Row colorRow=colorRows.get(0);
+				Row itemRow=itemRows.get(0);
 				
 				ProductVariant variant=new ProductVariant();
 				variant.setVariantId((Long)row.get("id"));
 				variant.setName((String)row.get("name"));
 				variant.setPrice((Integer)row.get("price"));
+				variant.setActive((Boolean)row.get("isActive"));
 				variant.setColor(new Color((Long)colorRow.get("id"), (String)colorRow.get("name")));
 				ProductItem item=new ProductItem();
 				item.setProductItemId((Long)row.get("itemId"));
+				item.setProductItemName((String)itemRow.get("name"));
+				item.setDescription(itemRow.get("description")==null?"":(String)itemRow.get("description"));
+				item.setModifiedAt((Long)itemRow.get("modifiedat"));
+				item.setCreatedAt((Long)itemRow.get("createdat"));
+				item.setIsActive((Boolean)itemRow.get("isActive"));
 				variant.setItem(item);
 				return variant;
 		
@@ -788,60 +886,27 @@ public class ProductManagementUtil implements ProductManagementInterface {
 
 		adapter.updateData(uq);
 	}
-	
-	public ProductItem getProductItemAndVariantsBy(String name,Object value) {
-
-		try {
-			ProductItem productItem=getProductItemBy(name, value);
-			if(productItem!=null) {
-				SelectQuery sq=new SelectQuery(PRODUCT_VARIANT);
-				Criteria criteria=new Criteria(new Column(PRODUCT_VARIANT,"itemId"),value);
-				criteria.setComparator(Criteria.EQUAL);
-				sq.setCriteria(criteria);
-				Join join1=new Join(new Column(PRODUCT_VARIANT,"id"),new Column(PRODUCT_IMAGES,"id"),Join.LEFT_JOIN);
-				Join join4=new Join(new Column(PRODUCT_VARIANT,"id"),new Column(PRODUCT_INVENTORY,"variantId"),Join.LEFT_JOIN);
-				Join join2=new Join(new Column(PRODUCT_VARIANT,"sizeId"),new Column(SIZE,"id"),Join.LEFT_JOIN);
-				Join join3=new Join(new Column(PRODUCT_VARIANT,"colorId"),new Column(COLORS,"id"),Join.LEFT_JOIN);
-		
-				sq.setJoin(join1);
-				sq.addJoin(join2);
-				sq.addJoin(join3);
-				sq.addJoin(join4);
-				DataHolder dh=adapter.executeQuery(sq);
-				TableHolder th=dh.getTable(PRODUCT_VARIANT);
-				TableHolder sizeTh=dh.getTable(SIZE);
-				TableHolder colorsTh=dh.getTable(COLORS);
-				TableHolder invenTh=dh.getTable(PRODUCT_INVENTORY);
-				if(th!=null) {
-					Map<Integer,Row> rows=th.getRows();
-					Map<Integer,Row> inventRows=invenTh.getRows();
-					Map<Integer,Row> sizesRow=sizeTh.getRows();
-					Map<Integer,Row> colorsRow=colorsTh.getRows();
-					for(int i=0;i<rows.size();i++) {
-						Row row=rows.get(i);
-						Row inventRow=inventRows.get(i);
-						Row colorRow=colorsRow.get(i);
-						Row sizeRow=sizesRow.get(i);
-						ProductVariant var=new ProductVariant();
-						var.setVariantId((Long)row.get("id"));
-						var.setPrice((Integer)row.get("price"));
-						var.setColor(new Color((Long)colorRow.get("id"), (String)colorRow.get("name")));
-						var.setSize(new Size((Long)sizeRow.get("id"), (String)sizeRow.get("name"),(Integer)sizeRow.get("ord"),(String)row.get("description")));
-						var.setImageUrl((String)row.get("imageUrl"));
-
-						productItem.getVariants().add(var);
-					}
-				}
-				return productItem;
-				
-			}
-	    }catch (Exception e) {
-			e.printStackTrace();
+    
+    public void enableOrDisableProductVariant(Long variantId) throws Exception {
+    	ProductVariant variant=getProductVariantById(variantId);
+		if(variant==null) {
+			throw new ExceptionCause("Variant id '"+variantId+"' not exist!", HttpStatus.BAD_REQUEST);
 		}
+        boolean isActive=variant.isActive();
+        
+		UpdateQuery uq=new UpdateQuery(PRODUCT_VARIANT);
 		
-		return null;
+		ArrayList<Column> cols=new ArrayList<Column>();
+        cols.add(new Column(PRODUCT_VARIANT, "isActive", isActive?false:true));
+        uq.setFields(cols);
+        
+		Criteria criteria=new Criteria(new Column(PRODUCT_VARIANT,"id"),variantId);
+		criteria.setComparator(Criteria.EQUAL);
+		
+		uq.setCriteria(criteria);
+		adapter.updateData(uq);
+		
 	}
-	
 	
 	
 	public void deleteImages(String imagePath) {
@@ -852,35 +917,60 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		}
 		
 	}
-	
-	public void closeConnection() {
-		try {
-			adapter.closeConnection();
-		}catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-   
-
-	
+		
 	//COLORS
-	public ArrayList<Color> getColors() {
+	public ArrayList<Color> getColors(GetInfo info) throws Exception {
 		ArrayList<Color> colors=new ArrayList<Color>();
-		try {
-			SelectQuery sq=new SelectQuery(COLORS);
-			DataHolder dh=adapter.executeQuery(sq);
-			TableHolder colorTh=dh.getTable(COLORS);
-			if(colorTh!=null) {
-				Map<Integer,Row> rows=colorTh.getRows();
-				for(int i=0;i<rows.size();i++) {
-					Row row=rows.get(i);
-					Color color=new Color((Long)row.get("id"),(String) row.get("name"));
-					colors.add(color);
-				}
-			}
-		}catch (Exception e) {
-			e.printStackTrace();
+		
+		SelectQuery sq=new SelectQuery(COLORS);
+		Criteria criteria=null;
+		if(info.getPaginationKey()!=null) {
+			criteria=new Criteria(new Column(COLORS,"id"), info.getPaginationKey());
+			criteria.setComparator(Criteria.GREATER);
 		}
+		
+		if(info.getFilterBy()!=null) {
+			int comparator;
+			if(info.getFilterValue() instanceof String) {
+				info.setFilterValue(splitCharactersByPercentage((String)info.getFilterValue()));
+				comparator=Criteria.LIKE;
+			}else {
+				comparator=Criteria.EQUAL;
+			}
+			String dbFieldName=Color.classDbNameMapForSearch.get(info.getFilterBy());
+			if(dbFieldName!=null) {
+				Criteria criteria2=new Criteria(new Column(COLORS,dbFieldName),info.getFilterValue());
+				criteria2.setComparator(comparator);
+			    if(criteria==null) {
+			    	criteria=criteria2;
+			    }else {
+			    	criteria2.and(criteria);
+			    	criteria=criteria2;
+			    }
+			}
+		}
+		
+		if(criteria!=null) {
+			sq.setCriteria(criteria);
+		}
+		
+		if(info.getRange()!=null) {
+			sq.setLimit(info.getRange());
+		}else {
+			sq.setLimit(10);
+		}
+		
+		DataHolder dh=adapter.executeQuery(sq);
+		TableHolder colorTh=dh.getTable(COLORS);
+		if(colorTh!=null) {
+			Map<Integer,Row> rows=colorTh.getRows();
+			for(int i=0;i<rows.size();i++) {
+				Row row=rows.get(i);
+				Color color=new Color((Long)row.get("id"),(String) row.get("name"),(String) row.get("csscolor"));
+				colors.add(color);
+			}
+		}
+		
 		return colors;
 	}
 	
@@ -907,26 +997,83 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		return colors;
 	}
 	
-	public Color getColorById(Long colorId){
+	private Color getColorByUnique(Criteria criteria) throws Exception{
 		
-		try {
-			SelectQuery sq=new SelectQuery(COLORS);
-			Criteria criteria=new Criteria(new Column(COLORS, "id"),colorId);
-			criteria.setComparator(Criteria.EQUAL);
-			sq.setCriteria(criteria);
-			DataHolder dh=adapter.executeQuery(sq);
-			TableHolder colorTh=dh.getTable(COLORS);
-			if(colorTh!=null) {
-				Map<Integer,Row> rows=colorTh.getRows();
-				Row row=rows.get(0);
-				Color color=new Color((Long)row.get("id"),(String) row.get("name"));
-				return color;
-				
-			}
-		}catch (Exception e) {
-			e.printStackTrace();
+		SelectQuery sq=new SelectQuery(COLORS);
+		sq.setCriteria(criteria);
+		DataHolder dh=adapter.executeQuery(sq);
+		TableHolder colorTh=dh.getTable(COLORS);
+		if(colorTh!=null && colorTh.getRows().size()==1) {
+			Map<Integer,Row> rows=colorTh.getRows();
+			Row row=rows.get(0);
+			Color color=new Color((Long)row.get("id"),(String) row.get("name"),(String) row.get("csscolor"));
+			return color;
+			
 		}
+		
 		return null;
+	}
+	
+	public Color getColorById(Long colorId) throws Exception{
+		Criteria criteria=new Criteria(new Column(COLORS, "id"),colorId);
+		criteria.setComparator(Criteria.EQUAL);
+		return getColorByUnique(criteria);
+	}
+	
+	public void createColor(Color color)throws Exception{
+		Criteria criteria1=new Criteria(new Column(COLORS, "name"),color.getName());
+		criteria1.setComparator(Criteria.EQUAL);
+		Criteria criteria2=new Criteria(new Column(COLORS, "csscolor"),color.getCssColor());
+		criteria2.setComparator(Criteria.EQUAL);
+		Color colorByName=getColorByUnique(criteria1);
+		Color colorByCssColor=getColorByUnique(criteria2);
+		if(colorByName==null && colorByCssColor==null) {
+			String fieldNames[]= {"name","csscolor"};
+			TableHolder th=new TableHolder(COLORS, fieldNames);
+			
+			Row row = new Row();
+			Map<String,Object> columns=row.getColumns();
+			columns.put("name",color.getName());
+			columns.put("csscolor",color.getCssColor());
+			th.setRow(row);
+			
+			adapter.persistData(th);
+		}else {
+			throw new ExceptionCause("Color 'name' or 'cssColor' already exist!", HttpStatus.BAD_REQUEST);
+		}
+		
+	}
+	
+    public void editColor(Color color)throws Exception {
+		Color colorFromDB=getColorById(color.getColorId());
+		if(!colorFromDB.getName().equals(color.getName())) {
+			Criteria criteria=new Criteria(new Column(COLORS, "name"),color.getName());
+			criteria.setComparator(Criteria.EQUAL);
+			if(getColorByUnique(criteria)!=null) {
+				throw new ExceptionCause("Color 'name' already exist!", HttpStatus.BAD_REQUEST);
+			}
+		}
+		
+		if(!colorFromDB.getCssColor().equals(color.getCssColor())) {
+			Criteria criteria=new Criteria(new Column(COLORS, "csscolor"),color.getCssColor());
+			criteria.setComparator(Criteria.EQUAL);
+			if(getColorByUnique(criteria)!=null) {
+				throw new ExceptionCause("Color 'cssColor' already exist!", HttpStatus.BAD_REQUEST);
+			}
+		}
+		
+		UpdateQuery uq=new UpdateQuery(COLORS);
+		ArrayList<Column> columns=new ArrayList<>();
+		columns.add(new Column(COLORS, "name", color.getName()));
+		columns.add(new Column(COLORS, "csscolor", color.getCssColor()));
+		
+		uq.setFields(columns);
+		Criteria criteria=new Criteria(new Column(COLORS, "id"),color.getColorId());
+		criteria.setComparator(Criteria.EQUAL);
+		uq.setCriteria(criteria);
+		
+		adapter.updateData(uq);
+		
 	}
 
 	//SIZES
@@ -952,9 +1099,8 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		return sizes;
 	}
 	
-	public Size getSizeBy(String param,Object value) {
+	public Size getSizeBy(String param,Object value) throws Exception {
 		
-		try {
 			SelectQuery sq=new SelectQuery(SIZE);
 			Criteria criteria=new Criteria(new Column(SIZE,param), value);
 			criteria.setComparator(Criteria.EQUAL);
@@ -971,14 +1117,12 @@ public class ProductManagementUtil implements ProductManagementInterface {
 				return size;
 				
 			}
-		}catch (Exception e) {
-			e.printStackTrace();
-		}
-		return null;
+			return null;
+		
 	}
 	
-    public String createSize(Size size) {
-    	try {
+    public void createSize(Size size) throws Exception {
+   
     		BeanValidator.setNullForEmptyString(size);
     		Size oldSize=getSizeBy("name",size.getName());
     		if(oldSize==null){
@@ -993,17 +1137,15 @@ public class ProductManagementUtil implements ProductManagementInterface {
     			columns.put("ord", size.getOrder());
     			th.setRow(row);
     			adapter.persistData(th);
-    			return CREATED;
+    			
+    		}else {
+    		    throw new ExceptionCause("Size already Exist!",HttpStatus.BAD_REQUEST);
     		}
-    		return EXIST;
-    	}catch (Exception e) {
-			e.printStackTrace();
-		}
-    	return FAILED;
+    	
     }
     
-	public String editSize(Size size) {
-		try {
+	public void editSize(Size size) throws Exception {
+		
 			BeanValidator.setNullForEmptyString(size);
 			Size oldSize=getSizeBy("id",size.getSizeId());
 			if(oldSize!=null) {
@@ -1018,14 +1160,12 @@ public class ProductManagementUtil implements ProductManagementInterface {
 				criteria.setComparator(Criteria.EQUAL);
 				uq.setCriteria(criteria);
 				adapter.updateData(uq);
-				return SUCCESS;
+
+			}else {
+			    throw new ExceptionCause("Size not exist!", HttpStatus.BAD_REQUEST);
 			}
-			return NOT_EXIST;
 			
-		}catch (Exception e) {
-			e.printStackTrace();
-		}
-		return FAILED;
+		
 	}
 	
 	public void createTopic(Topic newTopic) throws Exception {
@@ -1058,9 +1198,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 				UpdateQuery uq=new UpdateQuery(TOPICS);
 				ArrayList<Column> cols=new ArrayList<Column>();
 				cols.add(new Column(TOPICS,"name",topic.getName()));
-				if(topic.getActive()!=null) {
-					cols.add(new Column(TOPICS,"active",topic.getActive()));
-				}
+				cols.add(new Column(TOPICS,"active",topic.getActive()));
 				uq.setFields(cols);
 				Criteria crit=new Criteria(new Column(TOPICS,"id"),topic.getId());
 				crit.setComparator(Criteria.EQUAL);
@@ -1070,6 +1208,16 @@ public class ProductManagementUtil implements ProductManagementInterface {
 				new ExceptionCause("Topic name already exists!",HttpStatus.BAD_REQUEST);
 		}
 		
+	}
+	
+   public Topic getTopicById(Long id) throws Exception {
+	    Criteria criteria=new Criteria(new Column(TOPICS,"id"),id);
+		criteria.setComparator(Criteria.EQUAL);
+		Topic topicFromDB=getTopicByUniqueCriteria(criteria);
+		if(topicFromDB==null) {
+			throw new ExceptionCause("Topic id passed is not valid!", HttpStatus.BAD_REQUEST);
+		}
+		return topicFromDB;
 	}
 	
 	public ArrayList<Topic> getTopics() throws Exception {
@@ -1108,73 +1256,12 @@ public class ProductManagementUtil implements ProductManagementInterface {
 			 Row row=th.getRows().get(0);
 			 topic.setId((Long)row.get("id"));
 			 topic.setName((String)row.get("name"));
+			 topic.setActive((Boolean)row.get("active"));
 		}
 			
 		return topic;
 	}
 	
-	public boolean isTopicItemRelationExist(Long topicId,Long itemId)throws Exception {
-		
-		SelectQuery sq=new SelectQuery(TOPIC_ITEM_RELATION);
-		Criteria crit1=new Criteria(new Column(TOPIC_ITEM_RELATION,"topicId"),topicId);
-		crit1.setComparator(Criteria.EQUAL);
-		Criteria crit2=new Criteria(new Column(TOPIC_ITEM_RELATION,"itemId"),itemId);
-		crit2.setComparator(Criteria.EQUAL);
-		crit1.and(crit2);
-		sq.setCriteria(crit2);
-		DataHolder dh=adapter.executeQuery(sq);
-		TableHolder th=dh.getTable(TOPIC_ITEM_RELATION);
-		if(th!=null && th.getRows().size()==1) {
-			return true;
-		}else {
-			return false;
-		}
-		
-	}
-	
-	public void addProductItemToTopic(Long topicId,Long itemId) throws Exception {
-		
-		Criteria criteria=new Criteria(new Column(TOPICS,"id"),topicId);
-		criteria.setComparator(Criteria.EQUAL);
-		
-		Topic topic=getTopicByUniqueCriteria(criteria);
-		ProductItem item=getProductItemBy("id", itemId);
-		if(topic!=null && item!=null) {
-			if(!isTopicItemRelationExist(topicId, itemId)) {
-				
-					String fields[]= {"topicId","itemId"};
-					TableHolder th=new TableHolder(TOPIC_ITEM_RELATION, fields);
-					Row row=new Row();
-					Map<String,Object> cols=row.getColumns();
-					cols.put("itemId",itemId);
-					cols.put("topicId",topicId);
-					th.setRow(row);
-					adapter.persistData(th);			
-			}else {
-				throw new ExceptionCause("Relation already exist!",HttpStatus.BAD_REQUEST);
-			}
-			
-		}else {
-			throw new ExceptionCause("topic id or item id not exist!",HttpStatus.BAD_REQUEST);
-		}
-	}
-	
-	public void removeItemTopicRelation(Long topicId,Long itemId) throws Exception {
-	
-    	if(isTopicItemRelationExist(topicId, itemId)) {
-    		DeleteQuery dq=new DeleteQuery(TOPIC_ITEM_RELATION);
-    		Criteria crit1=new Criteria(new Column(TOPIC_ITEM_RELATION,"topicId"),topicId);
-			crit1.setComparator(Criteria.EQUAL);
-			Criteria crit2=new Criteria(new Column(TOPIC_ITEM_RELATION,"itemId"),itemId);
-			crit2.setComparator(Criteria.EQUAL);
-			crit1.and(crit2);
-			dq.setCriteria(crit1);
-			adapter.deleteData(dq);
-    	}else {
-    		new ExceptionCause("Item Topic Relation not exist!", HttpStatus.BAD_REQUEST);
-    	}
-		
-	}
 	
 	public void deleteTopicById(Long topicId) throws Exception {
 	
@@ -1190,6 +1277,128 @@ public class ProductManagementUtil implements ProductManagementInterface {
 			throw new ExceptionCause("topic id not exist!", HttpStatus.BAD_REQUEST);
 		}
 		
+	}
+	
+	//topic item relation
+	
+	public boolean isTopicVariantRelationExist(Relation relation)throws Exception {
+		
+		SelectQuery sq=new SelectQuery(TOPIC_VARIANT_RELATION);
+		Criteria crit1=new Criteria(new Column(TOPIC_VARIANT_RELATION,"topicId"),relation.getTopicId());
+		crit1.setComparator(Criteria.EQUAL);
+		Criteria crit2=new Criteria(new Column(TOPIC_VARIANT_RELATION,"variantId"),relation.getVariantId());
+		crit2.setComparator(Criteria.EQUAL);
+		Criteria crit3=new Criteria(new Column(TOPIC_VARIANT_RELATION,"variantId"),relation.getVariantId());
+		crit3.setComparator(Criteria.EQUAL);
+		crit1.and(crit2);
+		crit3.or(crit1);
+		sq.setCriteria(crit3);
+		DataHolder dh=adapter.executeQuery(sq);
+		TableHolder th=dh.getTable(TOPIC_VARIANT_RELATION);
+		if(th!=null && th.getRows().size()==1) {
+			
+			return true;
+		}else {
+			return false;
+		}
+		
+	}
+	
+	public void addProductVariantToTopic(Relation relation) throws Exception {
+		
+		Criteria criteria=new Criteria(new Column(TOPICS,"id"),relation.getTopicId());
+		criteria.setComparator(Criteria.EQUAL);
+		
+		Topic topic=getTopicByUniqueCriteria(criteria);
+		ProductVariant variant=getProductVariantById(relation.getVariantId());
+		
+		
+		if(topic!=null && variant!=null) {
+			
+			if(variant.getItem().getIsActive()==false) {
+				throw new ExceptionCause("Variant type is not active!",HttpStatus.BAD_REQUEST);
+			}
+			
+			if(!isTopicVariantRelationExist(relation)) {
+				
+					String fields[]= {"topicId","variantId"};
+					TableHolder th=new TableHolder(TOPIC_VARIANT_RELATION, fields);
+					Row row=new Row();
+					Map<String,Object> cols=row.getColumns();
+					cols.put("variantId",relation.getVariantId());
+					cols.put("topicId",relation.getTopicId());
+					th.setRow(row);
+					adapter.persistData(th);			
+			}else {
+				throw new ExceptionCause("Relation already exist or variant already in relation!",HttpStatus.BAD_REQUEST);
+			}
+			
+		}else {
+			throw new ExceptionCause("topic id or variant id not exist!",HttpStatus.BAD_REQUEST);
+		}
+	}
+	
+	public void removeTopicVariantRelation(Relation relation) throws Exception {
+	
+    	if(isTopicVariantRelationExist(relation)) {
+    		DeleteQuery dq=new DeleteQuery(TOPIC_VARIANT_RELATION);
+    		Criteria crit1=new Criteria(new Column(TOPIC_VARIANT_RELATION,"topicId"),relation.getTopicId());
+			crit1.setComparator(Criteria.EQUAL);
+			Criteria crit2=new Criteria(new Column(TOPIC_VARIANT_RELATION,"variantId"),relation.getVariantId());
+			crit2.setComparator(Criteria.EQUAL);
+			crit1.and(crit2);
+			dq.setCriteria(crit1);
+			adapter.deleteData(dq);
+    	}else {
+    		new ExceptionCause("Topic Variant Relation not exist!", HttpStatus.BAD_REQUEST);
+    	}
+		
+	}
+	public ArrayList<ProductVariant> getProductVariantsByTopicId(Long topicId)throws Exception{
+		ArrayList<ProductVariant> variants=new ArrayList<>();
+		SelectQuery sq=new SelectQuery(PRODUCT_VARIANT);
+		
+		Join join1=new Join(new Column(PRODUCT_VARIANT,"id"),new Column(TOPIC_VARIANT_RELATION,"variantId"),Join.INNER_JOIN);
+		sq.setJoin(join1);
+		
+		Join join2=new Join(new Column(PRODUCT_VARIANT,"itemId"),new Column(PRODUCT_ITEM,"id"),Join.INNER_JOIN);
+		sq.addJoin(join2);
+		
+		Criteria criteria=new Criteria(new Column(TOPIC_VARIANT_RELATION,"topicId"),topicId);
+		criteria.setComparator(Criteria.EQUAL);
+		sq.setCriteria(criteria);
+		
+		DataHolder dh=adapter.executeQuery(sq);
+		TableHolder th=dh.getTable(PRODUCT_VARIANT);
+		TableHolder itemTh=dh.getTable(PRODUCT_ITEM);
+		
+		if(th!=null && itemTh!=null) {
+			Map<Integer,Row> rows=th.getRows();
+			Map<Integer,Row> itemRows=itemTh.getRows();
+			for(int i=0;i<rows.size();i++) {
+				Row row=rows.get(i);
+				Row itemRow=itemRows.get(i);
+				ProductItem item=new ProductItem();
+				ProductVariant variant=new ProductVariant();
+				
+				
+				item.setProductItemId((Long)itemRow.get("id"));
+				item.setProductItemName((String)itemRow.get("name"));
+				item.setDescription(itemRow.get("description")==null?"":(String)itemRow.get("description"));
+				item.setModifiedAt((Long)itemRow.get("modifiedat"));
+				item.setCreatedAt((Long)itemRow.get("createdat"));
+				item.setIsActive((Boolean)itemRow.get("isActive"));
+			   
+				variant.setVariantId((Long)row.get("id"));
+				variant.setName((String)row.get("name"));
+				variant.setPrice((Integer)row.get("price"));
+				variant.setItem(item);
+				variants.add(variant);
+				
+			}
+			
+		}
+		return variants;
 	}
 	
 	//variant images
@@ -1474,18 +1683,137 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		adapter.deleteData(dq);
 	}
 	
+	//banners
 	
-	//helper methods
-	private String splitCharactersByPercentage(String arg) {
-		StringBuilder builder=new StringBuilder();
-		char chArr[]=arg.toCharArray();
+	@Override
+	public void createBanner(BannerImage banner) throws Exception {
+		String fieldNames[]= {"name","ord","imageUrl"};
+		TableHolder th=new TableHolder(BANNER_IMAGES, fieldNames);
+		Row row=new Row();
+		Map<String,Object> columns=row.getColumns();
+		columns.put("name",banner.getName());
+		columns.put("ord",banner.getOrd());
+		columns.put("imageUrl",banner.getUrl());
+		th.setRow(row);
+		adapter.persistData(th);
+		
+	}
 	
-		for(int i=0;i<chArr.length;i++) {
-			builder.append(chArr[i]);
-			builder.append('%');
+	
+	private BannerImage getBannerImageByUnique(Criteria criteria)throws Exception {
+		SelectQuery sq=new SelectQuery(BANNER_IMAGES);
+		sq.setCriteria(criteria);
+		BannerImage banner=null;
+		DataHolder dh=adapter.executeQuery(sq);
+		TableHolder th=dh.getTable(BANNER_IMAGES);
+		if(th!=null && th.getRows().size()==1) {
+			Row row=th.getRows().get(0);
+            banner=new BannerImage();
+            banner.setImageId((Long)row.get("id"));
+            banner.setName((String)row.get("name"));
+            banner.setUrl((String)row.get("imageUrl"));
+            banner.setOrd((Integer)row.get("ord"));
+		}
+		return banner;
+	}
+	
+	
+	@Override
+	public void deleteBannerImageById(Long imageId) throws Exception {
+		String tomcatBase = System.getProperty("catalina.base")+"\\wtpwebapps\\shoppingapp\\resources\\img";
+		BannerImage image=getBannerImageById(imageId);
+		if(image==null) {
+			throw new ExceptionCause("Invalid image id", HttpStatus.BAD_REQUEST);
 		}
 		
-		return builder.toString();
+		DeleteQuery dq=new DeleteQuery(BANNER_IMAGES);
+		Criteria criteria=new Criteria(new Column(BANNER_IMAGES,"id"), imageId);
+		criteria.setComparator(Criteria.EQUAL);
+		dq.setCriteria(criteria);
+		
+		int affected=adapter.deleteData(dq);
+		
+		if(affected>0) {
+			String filePath=tomcatBase+File.separator+image.getUrl();
+			deleteImages(filePath);
+		}
+	}
+	
+	@Override
+	public BannerImage getBannerImageByName(String name)throws Exception {
+		Criteria criteria=new Criteria(new Column(BANNER_IMAGES,"name"), name);
+		criteria.setComparator(Criteria.EQUAL);
+		return getBannerImageByUnique(criteria);
+	}
+	
+	@Override
+	public BannerImage getBannerImageById(Long id)throws Exception {
+		Criteria criteria=new Criteria(new Column(BANNER_IMAGES,"id"), id);
+		criteria.setComparator(Criteria.EQUAL);
+		return getBannerImageByUnique(criteria);
+	}
+	
+	@Override
+	public void editBannerImage(BannerImage image) throws Exception {
+		BannerImage imageFromDb=getBannerImageById(image.getImageId());
+		
+		if(imageFromDb==null) {
+			throw new ExceptionCause("Image id is invalid", HttpStatus.BAD_REQUEST);
+		}
+		
+		UpdateQuery uq=new UpdateQuery(BANNER_IMAGES);
+		
+		ArrayList<Column> cols=new ArrayList<Column>();
+		cols.add(new Column(BANNER_IMAGES,"ord",image.getOrd()));
+		uq.setFields(cols);
+		Criteria crit=new Criteria(new Column(BANNER_IMAGES,"id"),image.getImageId());
+		crit.setComparator(Criteria.EQUAL);
+		uq.setCriteria(crit);
+		adapter.updateData(uq);
+		
+	}
+	
+	@Override
+	public ArrayList<BannerImage> getBannerImages() throws Exception{
+		ArrayList<BannerImage> images=new ArrayList<BannerImage>();
+		
+		SelectQuery sq=new SelectQuery(BANNER_IMAGES);
+		
+		DataHolder dh=adapter.executeQuery(sq);
+		TableHolder th=dh.getTable(BANNER_IMAGES);
+		if(th!=null) {
+			
+			Map<Integer,Row> rows=th.getRows();
+			
+			for(int i=0;i<rows.size();i++) {
+				Row row=rows.get(i);
+				BannerImage banner=new BannerImage();
+				banner.setImageId((Long)row.get("id"));
+		        banner.setName((String)row.get("name"));
+		        banner.setUrl((String)row.get("imageUrl"));
+		        banner.setOrd((Integer)row.get("ord"));
+		        images.add(banner);
+			}
+			
+		}
+		return images;
+	}
+	
+	
+	//helper methods
+	public static String splitCharactersByPercentage(String arg) {
+		if(arg!=null) {
+			StringBuilder builder=new StringBuilder();
+			char chArr[]=arg.toCharArray();
+			builder.append('%');
+			for(int i=0;i<chArr.length;i++) {
+				builder.append(chArr[i]);
+				builder.append('%');
+			}
+			
+			return builder.toString();
+		}
+		return arg;
 	}
 	
 

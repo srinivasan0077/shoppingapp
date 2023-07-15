@@ -20,6 +20,8 @@ public class Product {
 	@Size(max =255,message = "Product description's length cannot exceed 255!")
 	private String description;
 	
+	private boolean isHeader=false;
+	
 	private Long createdAt;
 	private Long modifiedAt;
 	
@@ -72,6 +74,14 @@ public class Product {
 	public String toString() {
 		return "Product [productId=" + productId + ", productName=" + productName + ", productType=" + productType
 				+ ", description=" + description + ", createdAt=" + createdAt + ", modifiedAt=" + modifiedAt + "]";
+	}
+
+	public boolean isHeader() {
+		return isHeader;
+	}
+
+	public void setHeader(boolean isHeader) {
+		this.isHeader = isHeader;
 	}
 	
 	

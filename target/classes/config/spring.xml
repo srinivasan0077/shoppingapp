@@ -22,6 +22,9 @@
      <bean id="productutil" class="com.shoppingapp.productUtils.ProductManagementUtil" scope="prototype">
        <constructor-arg ref="dbadapter"></constructor-arg>
     </bean>
+    <bean id="shoppingutil" class="com.shoppingapp.shopUtils.ShoppingUtil" scope="prototype">
+       <constructor-arg ref="dbadapter"></constructor-arg>
+    </bean>
     
     <!--   <bean id="scheduler" class="com.shoppingapp.scheduler.SchedulerImpl"
       init-method="startScheduler" destroy-method="destroyScheduler">

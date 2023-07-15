@@ -6,8 +6,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Map;
 
-import org.springframework.context.ApplicationContext;
-
+import org.springframework.http.HttpStatus;
 import com.shoppingapp.dbutils.Column;
 import com.shoppingapp.dbutils.Criteria;
 import com.shoppingapp.dbutils.DBAdapter;
@@ -17,8 +16,8 @@ import com.shoppingapp.dbutils.SelectQuery;
 import com.shoppingapp.dbutils.TableHolder;
 import com.shoppingapp.dbutils.UpdateQuery;
 import com.shoppingapp.entities.User;
-import com.shoppingapp.utils.BeanFactoryWrapper;
 import com.shoppingapp.utils.EncryptionUtil;
+import com.shoppingapp.utils.ExceptionCause;
 import com.shoppingapp.utils.RandomTokenGenerator;
 
 public class AuthUtil implements AuthUtilInterface {
@@ -86,8 +85,8 @@ public class AuthUtil implements AuthUtilInterface {
 		return FAILED;
 	}
 
-	public String updateUser(User user) {
-		try {
+	public void updateUser(User user) throws Exception {
+
 			UpdateQuery uq=new UpdateQuery("verified_users");
 			ArrayList<Column> cols=new ArrayList<Column>();
 			String salt=RandomTokenGenerator.getAlphaNumericString(20);
@@ -103,36 +102,26 @@ public class AuthUtil implements AuthUtilInterface {
 			criteria.setComparator(Criteria.EQUAL);
 			uq.setCriteria(criteria);
 			adapter.updateData(uq);
-			return SUCCESS;
-		}catch (Exception e) {
-			// TODO: handle exception
-			e.printStackTrace();
-		}
-		return FAILED;
+		
 	}
 	
-	public String authenticate(User user) {
+	public void authenticate(User user) throws Exception {
 		User authenticatedUser=getUserBy("email",user.getEmail());
-		if(authenticatedUser==null || !authenticatedUser.isVerified()) {
-			return NOT_EXIST;
+		if(authenticatedUser==null) {
+			throw new ExceptionCause("User email '"+user.getEmail()+"' not exist!",HttpStatus.BAD_REQUEST);
+		}
+			
+		String password=EncryptionUtil.getSHA(authenticatedUser.getSalt()+user.getPassword());
+		if(!password.equals(authenticatedUser.getPassword())) {
+			throw new ExceptionCause("Authentication failed for user with email '"+user.getEmail()+"'!",HttpStatus.BAD_REQUEST);
 		}
 		
-		try {
-			String password=EncryptionUtil.getSHA(authenticatedUser.getSalt()+user.getPassword());
-			if(password.equals(authenticatedUser.getPassword())) {
-				return SUCCESS;
-			}
-		}catch (Exception e) {
-			System.out.println(e.getLocalizedMessage());
-		}
-		
-		return FAILED;
 	}
 
 	public boolean isAdmin(Long id) {
 		User user = getUserBy("id", id);
 		if(user!=null) {
-			if(user.isVerified() && user.getRoleid()==2) {
+			if(user.getRoleid()==2) {
 				return true;
 			}
 		}
@@ -160,9 +149,7 @@ public class AuthUtil implements AuthUtilInterface {
 	        		user.setFirstname((String)row.get("firstname"));
 	        		user.setLastname((String)row.get("lastname"));
 	        		user.setRoleid((Long)row.get("roleId"));
-	        		user.setSalt((String)row.get("salt"));
-	        		user.setVerified(true);
-		        	
+	        		user.setSalt((String)row.get("salt"));   	
 	        	    return user;
 	        	}
 	        }
@@ -180,23 +167,6 @@ public class AuthUtil implements AuthUtilInterface {
 		}
 	}
 	
-	public static void main(String[] args) {
-		ApplicationContext factory=BeanFactoryWrapper.getBeanFactory();
-	//	ClassPathXmlApplicationContext factory=new ClassPathXmlApplicationContext("config/spring.xml");
-		AuthUtilInterface util=(AuthUtilInterface)factory.getBean("authutil");
-		User user=new User();
-		user.setEmail("vijiya@gmail.com");
-		user.setPassword("seenu");
-		user.setFirstname("vijiya");
-		user.setLastname("dhandapani");
-		user.setPhone("9080110805");
-	   //	util.createUser(user);
-		User authenticateUser=util.getUserBy("email","seenu@gmail.com");
-		authenticateUser.setPassword("vijiya");
-		System.out.println(util.authenticate(authenticateUser));
-		util.closeConnection();
-		//factory.close();
-		
-	}
+	
 	
 }

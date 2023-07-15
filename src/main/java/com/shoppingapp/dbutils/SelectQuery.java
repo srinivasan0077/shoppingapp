@@ -11,7 +11,17 @@ public class SelectQuery {
 	private String tableName;
 	private OrderBy orderBy;
 	private Integer limit;
+	private boolean useDistinct=false;
 	
+	
+	public boolean isUseDistinct() {
+		return useDistinct;
+	}
+
+	public void setUseDistinct(boolean useDistinct) {
+		this.useDistinct = useDistinct;
+	}
+
 	public OrderBy getOrderBy() {
 		return orderBy;
 	}
@@ -67,39 +77,54 @@ public class SelectQuery {
 	
 
 	public String getSelectQueryString() {
-		String selectQueryString="select ";
+		StringBuilder selectQueryString=new StringBuilder("select ");
+		if(useDistinct) {
+			selectQueryString.append("DISTINCT ");
+		}
+		
 		if(fields==null) {
-			selectQueryString+="* ";
+			selectQueryString.append("* ");
 		}else {
 			for(int i=0;i<fields.size();i++) {
 				Column column=fields.get(i);
-				selectQueryString+=column.getTableName()+"."+column.getColumnName();
+			    selectQueryString.append(column.getTableName()).append(".").append(column.getColumnName());
 				if(i!=fields.size()-1) {
-					selectQueryString+=",";
+					selectQueryString.append(",");
 				}
 			}
 		}
-		selectQueryString+=" from "+this.tableName+" ";
+		selectQueryString.append(" from ").append(this.tableName).append(" ");
 		if(joinList!=null) {
 			for(int i=0;i<joinList.size();i++) {
-				selectQueryString+=joinList.get(i).getJoinString()+" ";
+				selectQueryString.append(joinList.get(i).getJoinString()).append(" ");
 			}
 		}
 		
 		if(criteria!=null) {
-			selectQueryString+="where "+criteria.getCriteria()+" ";
+			selectQueryString.append("where ").append(criteria.getCriteria()).append(" ");
 		}
 		
 		if(orderBy!=null) {
-			selectQueryString+=orderBy.constructOrderBy()+" ";
+			selectQueryString.append(orderBy.constructOrderBy()).append(" ");
 		}
 		
 		if(limit!=null) {
-			selectQueryString+="LIMIT "+limit;
+			selectQueryString.append("LIMIT ").append(limit);
 		}
 		
-		return selectQueryString;
+		return selectQueryString.toString();
 	}
+	
+	public ArrayList<Object> getJoinValuesToBePlaced(){
+		ArrayList<Object> values=new ArrayList<>();
+		if(joinList!=null) {
+			for(int i=0;i<joinList.size();i++) {
+				values.addAll(joinList.get(i).getValuesToBeplaced());
+			}
+		}
+		return values;
+	}
+	
     
 	public static void main(String args[]) {
 		SelectQuery sq=new SelectQuery("users");

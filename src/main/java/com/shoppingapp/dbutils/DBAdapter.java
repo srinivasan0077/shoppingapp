@@ -27,6 +27,23 @@ public class DBAdapter {
 		String selectQueryString=query.getSelectQueryString();
 		System.out.println(selectQueryString);
 		PreparedStatement st=conn.prepareStatement(selectQueryString);
+		
+		
+		ArrayList<Object> joinValues=query.getJoinValuesToBePlaced();
+		for(int i=0;i<joinValues.size();i++) {
+			  Object data=joinValues.get(i);
+			  convertAndSetObject(st,i+1,data);
+		}
+		
+		
+		if(query.getCriteria()!=null) {
+			ArrayList<Object> values=query.getCriteria().getValuesToBePlaced();
+			for(int i=0;i<values.size();i++) {
+				  Object data=values.get(i);
+				  convertAndSetObject(st,i+1,data);
+			}
+		}
+		
 		if(query.getCriteria()!=null) {
 			ArrayList<Object> values=query.getCriteria().getValuesToBePlaced();
 			for(int i=0;i<values.size();i++) {
@@ -42,7 +59,7 @@ public class DBAdapter {
 	    	for(int i=0;i<metadata.getColumnCount();i++) {
 	    		
 	    		Column col=new Column(metadata.getTableName(i+1),metadata.getColumnName(i+1));
-	    		
+
 	    		if(dh.getTable(col.getTableName())!=null) {
 	    			TableHolder th=dh.getTable(col.getTableName());
 	    			if(th.getRows().get(rowTracker)!=null) {
@@ -69,56 +86,56 @@ public class DBAdapter {
 	
 	public String constructInsertQuery(TableHolder th) {
 		if(th.getParentTableName()==null) {
-			String insertQuery="insert into "+th.getTableName()+"(";
-			String values=" values(";
+			StringBuilder insertQuery=new StringBuilder("insert into ").append(th.getTableName()).append("(");
+			StringBuilder values=new StringBuilder(" values(");
 			String[] fieldNames=th.getFieldNames();
 			for(int i=0;i<fieldNames.length;i++) {
-				insertQuery+=fieldNames[i];
-				values+="?";
+				insertQuery.append(fieldNames[i]);
+				values.append("?");
 				if(i!=fieldNames.length-1) {
-					insertQuery+=",";
-					values+=",";
+					insertQuery.append(",");
+					values.append(",");
 				}
 			}
-			insertQuery+=")"+values+");";
+			insertQuery.append(")").append(values).append(");");
 			
-			return insertQuery;
+			return insertQuery.toString();
 		}else {
-			String insertQuery="insert into "+th.getTableName()+"(";
-			String selectQuery=" select ";
+			StringBuilder insertQuery=new StringBuilder("insert into ").append(th.getTableName()).append("(");
+			StringBuilder selectQuery=new StringBuilder(" select ");
 			String[] fieldNames=th.getFieldNames();
 			String[] parentUniqueFields=th.getParentUniqueFields();
 			for(int i=0;i<fieldNames.length;i++) {
-				insertQuery+=fieldNames[i];
+				insertQuery.append(fieldNames[i]);
 				if(i!=fieldNames.length-1) {
-					insertQuery+=",";
+					insertQuery.append(",");
 				}else {
-					insertQuery+=") ";
+					insertQuery.append(") ");
 				}
 				
 				if(i==th.getPkFieldIndex()) {
-					selectQuery+=th.getParentPkName();
+					selectQuery.append(th.getParentPkName());
 				}else {
-					selectQuery+="?";
+					selectQuery.append("?");
 				}
 				if(i!=fieldNames.length-1) {
-					selectQuery+=",";
+					selectQuery.append(",");
 				}
 			}
-			selectQuery+=" from "+th.getParentTableName()+" where ";
+			selectQuery.append(" from ").append(th.getParentTableName()).append(" where ");
 			for(int i=0;i<parentUniqueFields.length;i++) {
 				String fieldName=parentUniqueFields[i];
 				if(th.hasSubQuery(parentUniqueFields[i])) {
-					selectQuery+=fieldName+"=("+th.getSubQuery(fieldName).getSelectQueryString()+")";
+					selectQuery.append(fieldName).append("=(").append(th.getSubQuery(fieldName).getSelectQueryString()).append(")");
 				}else {
-				 selectQuery+=parentUniqueFields[i]+"=?";
+				 selectQuery.append(parentUniqueFields[i]).append("=?");
 				}
 				if((i+1)<parentUniqueFields.length) {
-					selectQuery+=" and ";
+					selectQuery.append(" and ");
 				}
 			}
-			insertQuery+=selectQuery+";";
-			return insertQuery;
+			insertQuery.append(selectQuery).append(";");
+			return insertQuery.toString();
 		}
 		
 		

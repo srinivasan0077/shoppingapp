@@ -33,7 +33,6 @@ public class User {
 	private Long roleid;
 	private String salt;
 	private boolean isAuthenticated=false;
-	private boolean verified=false;
 	
 	
 	public Long getUserid() {
@@ -128,12 +127,6 @@ public class User {
 		this.isAuthenticated = isAuthenticated;
 	}
 	
-	public boolean isVerified() {
-		return verified;
-	}
-	public void setVerified(boolean verified) {
-		this.verified = verified;
-	}
 	@Override
 	public String toString() {
 		return "User [userid=" + userid + ", gender=" + gender + ", firstname=" + firstname + ", lastname=" + lastname

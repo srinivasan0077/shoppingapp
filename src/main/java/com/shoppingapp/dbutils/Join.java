@@ -1,10 +1,15 @@
 package com.shoppingapp.dbutils;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Join {
 
 	private Column col1;
 	private Column col2;
 	private Integer joinType;
+	private SelectQuery joinQuery;
+	private String alias;
 	public static Integer INNER_JOIN=0;
 	public static Integer LEFT_JOIN=1;
 	public static Integer RIGHT_JOIN=2;
@@ -14,6 +19,21 @@ public class Join {
 		this.col1=col1;
 		this.col2=col2;
 		this.joinType=joinType;
+	}
+	
+	public Join(Column col1,Column col2,String alias,Integer joinType) {
+		this.col1=col1;
+		this.col2=col2;
+		this.joinType=joinType;
+		this.alias=alias;
+	}
+	
+	public Join(SelectQuery sq,Column col1,Column col2,String alias,Integer joinType) {
+		this.joinQuery=sq;
+		this.col1=col1;
+		this.col2=col2;
+		this.joinType=joinType;
+		this.alias=alias;
 	}
 
 	private String getJoin() {
@@ -32,8 +52,35 @@ public class Join {
 	}
 	
 	public String getJoinString() {
-		return this.getJoin()+" "+col2.getTableName()+" ON "+col1.getTableName()+"."+col1.getColumnName()+"="+
-					col2.getTableName()+"."+col2.getColumnName();
+		
+		StringBuilder joinBuilder=new StringBuilder(this.getJoin());
+		joinBuilder.append(" ");
+		if(joinQuery!=null) {
+			joinBuilder.append("(");
+			joinBuilder.append(joinQuery.getSelectQueryString());
+			joinBuilder.append(") AS ").append(alias);
+			
+		}else {
+			joinBuilder.append(col2.getTableName());
+		}
+		joinBuilder.append(" ON ").append(col1.getTableName()).append(".").append(col1.getColumnName()).append("=");
+		
+		if(alias!=null) {
+			joinBuilder.append(alias).append(".").append(col2.getColumnName()).toString();
+		}else {
+			joinBuilder.append(col2.getTableName()).append(".").append(col2.getColumnName()).toString();
+		}
+		return joinBuilder.toString();
+	}
+	
+	public ArrayList<Object> getValuesToBeplaced(){
+		ArrayList<Object> values=new ArrayList<>();
+		if(joinQuery!=null) {
+			if(joinQuery.getCriteria()!=null) {
+				joinQuery.getCriteria().addValues(values);
+			}
+		}
+		return values;
 	}
 
 	@Override

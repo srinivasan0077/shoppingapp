@@ -11,11 +11,19 @@ public class ExceptionCause extends Exception {
 	private static final long serialVersionUID = 1L;
 	
 	private HttpStatus errorCode;
+	private int status;
 
 	public ExceptionCause(String message,HttpStatus errorCode) {
 		super(message);
 		this.errorCode=errorCode;
 	}
+	
+	public ExceptionCause(String message,int status,HttpStatus errorCode) {
+		super(message);
+		this.errorCode=errorCode;
+		this.setStatus(status);
+	}
+	
 	public HttpStatus getErrorCode() {
 		return errorCode;
 	}
@@ -30,6 +38,14 @@ public class ExceptionCause extends Exception {
 	    PrintWriter pWriter = new PrintWriter(sWriter);
 	    e.printStackTrace(pWriter);
 	    return sWriter.toString();
+	}
+
+	public int getStatus() {
+		return status;
+	}
+
+	public void setStatus(int status) {
+		this.status = status;
 	}
 	
 	
