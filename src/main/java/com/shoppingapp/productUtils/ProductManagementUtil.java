@@ -1,18 +1,12 @@
 package com.shoppingapp.productUtils;
 
 import java.io.File;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-import org.apache.catalina.startup.Catalina;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.springframework.http.HttpStatus;
 
 import com.shoppingapp.dbutils.Column;
@@ -27,47 +21,56 @@ import com.shoppingapp.dbutils.Row;
 import com.shoppingapp.dbutils.SelectQuery;
 import com.shoppingapp.dbutils.TableHolder;
 import com.shoppingapp.dbutils.UpdateQuery;
+import com.shoppingapp.entities.Address;
 import com.shoppingapp.entities.BannerImage;
 import com.shoppingapp.entities.Category;
 import com.shoppingapp.entities.Color;
 import com.shoppingapp.entities.GetInfo;
 import com.shoppingapp.entities.Inventory;
+import com.shoppingapp.entities.OrderEntity;
+import com.shoppingapp.entities.OrderEntity.Status;
+import com.shoppingapp.shopUtils.TableNames;
 import com.shoppingapp.entities.Product;
 import com.shoppingapp.entities.ProductItem;
 import com.shoppingapp.entities.ProductVariant;
 import com.shoppingapp.entities.Relation;
 import com.shoppingapp.entities.Size;
 import com.shoppingapp.entities.Topic;
+import com.shoppingapp.entities.User;
 import com.shoppingapp.entities.VariantImage;
-import com.shoppingapp.utils.BeanFactoryWrapper;
+import com.shoppingapp.utils.AWSS3StorageService;
 import com.shoppingapp.utils.BeanValidator;
+import com.shoppingapp.utils.DateManipulatorUtil;
 import com.shoppingapp.utils.ExceptionCause;
 
 
 public class ProductManagementUtil implements ProductManagementInterface {
 	
 	private DBAdapter adapter;
-	public String CREATED="CREATED";
-	public String FAILED="FAILED";
-	public String SUCCESS="SUCCESS";
-	public String EXIST="EXIST";
-	public String NOT_EXIST="NOT_EXIST";
-	public String NOT_VERIFIED="NOT_VERIFIED";
+	public static String CREATED="CREATED";
+	public static String FAILED="FAILED";
+	public static String SUCCESS="SUCCESS";
+	public static String EXIST="EXIST";
+	public static String NOT_EXIST="NOT_EXIST";
+	public static String NOT_VERIFIED="NOT_VERIFIED";
 	
 	//tableNames
-	public String PRODUCT_CATEGORY="product_category";
-	public String PRODUCT="product";
-	public String PRODUCT_ITEM="product_item";
-	public String PRODUCT_VARIANT="product_variant";
-	public String PRODUCT_INVENTORY="product_inventory";
-	public String PRODUCT_IMAGES="product_images";
-	public String COLORS="colors";
-	public String SIZE="size";
-	public String TOPICS="topics";
-	public String TOPIC_VARIANT_RELATION="topic_variant_relation";
-	public String BANNER_IMAGES="banner_images";
-	
-	private static final Logger logger=LogManager.getLogger(ProductManagementUtil.class);
+	public static String PRODUCT_CATEGORY="product_category";
+	public static String PRODUCT="product";
+	public static String PRODUCT_ITEM="product_item";
+	public static String PRODUCT_VARIANT="product_variant";
+	public static String PRODUCT_INVENTORY="product_inventory";
+	public static String PRODUCT_IMAGES="product_images";
+	public static String COLORS="colors";
+	public static String SIZE="size";
+	public static String TOPICS="topics";
+	public static String TOPIC_VARIANT_RELATION="topic_variant_relation";
+	public static String BANNER_IMAGES="banner_images";
+	public static String CART="cart";
+	public static String ORDERS="orders";
+	public static String ORDER_VARIANT_REL="order_variant_relation";
+	public static String USER_ADDRESS="user_address";
+	public static String USERS="verified_users"; 
 	
 	//CATEGORIES FUNCTIONS
 	public ProductManagementUtil(DBAdapter adapter){
@@ -333,7 +336,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		cols.add(new Column(PRODUCT,"description",product.getDescription()));
 		cols.add(new Column(PRODUCT,"category",product.getProductType().getProductTypeId()));
 		cols.add(new Column(PRODUCT,"modifiedat",new Date().getTime()));
-		cols.add(new Column(PRODUCT,"isHeader",product.isHeader()));
+		cols.add(new Column(PRODUCT,"isHeader",product.getIsHeader()));
 		uq.setFields(cols);
 		Criteria crit=new Criteria(new Column(PRODUCT,"id"),product.getProductId());
 		crit.setComparator(Criteria.EQUAL);
@@ -365,7 +368,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 				product.setDescription((String)row.get("description"));
 				product.setCreatedAt((Long)row.get("createdat"));
 				product.setModifiedAt((Long)row.get("modifiedat"));
-				product.setHeader((Boolean)row.get("isHeader"));
+				product.setIsHeader((Boolean)row.get("isHeader"));
 				cat.setProductTypeId((Long)row.get("category"));
 				cat.setProductTypeName((String)catRow.get("name"));
 				product.setProductType(cat);
@@ -400,7 +403,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 					product.setDescription((String)row.get("description"));
 					product.setCreatedAt((Long)row.get("createdat"));
 					product.setModifiedAt((Long)row.get("modifiedat"));
-					product.setHeader((Boolean)row.get("isHeader"));
+					product.setIsHeader((Boolean)row.get("isHeader"));
 					cat.setProductTypeId((Long)catRow.get("id"));
 					cat.setProductTypeName((String)catRow.get("name"));
 					cat.setDescription((String)catRow.get("description"));
@@ -584,7 +587,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 			    if(criteria==null) {
 			    	criteria=criteria2;
 			    }else {
-			    	criteria2.and(criteria);
+			    	criteria2.childAnd(criteria);
 			    	criteria=criteria2;
 			    }
 			}
@@ -643,17 +646,49 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		}
         boolean isActive=item.getIsActive();
         
-		UpdateQuery uq=new UpdateQuery(PRODUCT_ITEM);
-		
-		ArrayList<Column> cols=new ArrayList<Column>();
-        cols.add(new Column(PRODUCT_ITEM, "isActive", isActive?false:true));
-        uq.setFields(cols);
-        
-		Criteria criteria=new Criteria(new Column(PRODUCT_ITEM,"id"),itemId);
-		criteria.setComparator(Criteria.EQUAL);
-		
-		uq.setCriteria(criteria);
-		adapter.updateData(uq);
+        adapter.beginTxn();
+        try {
+			UpdateQuery uq=new UpdateQuery(PRODUCT_ITEM);
+			
+			ArrayList<Column> cols=new ArrayList<Column>();
+	        cols.add(new Column(PRODUCT_ITEM, "isActive", isActive?false:true));
+	        uq.setFields(cols);
+	        
+			Criteria criteria=new Criteria(new Column(PRODUCT_ITEM,"id"),itemId);
+			criteria.setComparator(Criteria.EQUAL);
+			
+			uq.setCriteria(criteria);
+			adapter.updateData(uq);
+			if(isActive) {
+				SelectQuery sq=new SelectQuery(PRODUCT_ITEM);
+				Join join1=new Join(new Column(PRODUCT_ITEM,"id"),new Column(PRODUCT_VARIANT,"itemId"),Join.INNER_JOIN);
+				Join join2=new Join(new Column(PRODUCT_VARIANT,"id"),new Column(PRODUCT_INVENTORY,"variantId"),Join.INNER_JOIN);
+			    sq.setJoin(join1);
+			    sq.addJoin(join2);
+			    
+			    sq.setCriteria(criteria);
+			    DataHolder dh=adapter.executeQuery(sq);
+			    TableHolder inventoryTh=dh.getTable(PRODUCT_INVENTORY);
+			    if(inventoryTh!=null && inventoryTh.getRows().size()>0) {
+			    	List<Object> inventoryIds=new ArrayList<>();
+			    	Map<Integer,Row> inventoryRows=inventoryTh.getRows();
+			    	for(int i=0;i<inventoryRows.size();i++) {
+			    		Row row=inventoryRows.get(i);
+			    		inventoryIds.add((Long)row.get("id"));
+			    	}
+			    	DeleteQuery dq=new DeleteQuery(CART);
+			    	Criteria deleteCartCriteria=new Criteria(new Column(CART,"inventoryId"));
+					deleteCartCriteria.setDataCollection(inventoryIds);
+					deleteCartCriteria.setComparator(Criteria.IN);
+					dq.setCriteria(deleteCartCriteria);
+					adapter.deleteData(dq);
+			    }
+			}
+			adapter.commitTxn();
+        }catch (Exception e) {
+        	adapter.revertTxn();
+			throw e;
+		}
 	}
 	
 	//VARIANTS FUNCTIONS
@@ -685,7 +720,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 				    if(criteria==null) {
 				    	criteria=criteria2;
 				    }else {
-				    	criteria2.and(criteria);
+				    	criteria2.childAnd(criteria);
 				    	criteria=criteria2;
 				    }
 				}
@@ -725,7 +760,8 @@ public class ProductManagementUtil implements ProductManagementInterface {
 						var.setVariantId((Long)row.get("id"));
 						var.setName((String)row.get("name"));
 						var.setPrice((Integer)row.get("price"));
-						var.setActive((Boolean)row.get("isActive"));
+						var.setIsActive((Boolean)row.get("isActive"));
+						var.setIsCOD((Boolean)row.get("cod"));
 						var.setColor(new Color((Long)colorRow.get("id"), (String)colorRow.get("name")));
 						ProductItem item=new ProductItem();
 						item.setProductItemId((Long)row.get("itemId"));
@@ -749,7 +785,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 	public void createProductVariants(ArrayList<ProductVariant> productVars) throws Exception {
 		
 		//Configurations
-		String[] fieldNames= {"name","itemId","price","colorId"};
+		String[] fieldNames= {"name","itemId","price","colorId","cod"};
 		TableHolder th=new TableHolder(PRODUCT_VARIANT,fieldNames);
 	;
 		//data
@@ -760,7 +796,8 @@ public class ProductManagementUtil implements ProductManagementInterface {
 			columns.put("name",prodVar.getName());
 			columns.put("itemId", prodVar.getItem().getProductItemId());
 			columns.put("price", prodVar.getPrice());
-			columns.put("colorId", prodVar.getColor().getColorId());	
+			columns.put("colorId", prodVar.getColor().getColorId());
+			columns.put("cod", prodVar.getIsCOD());
 			th.setRow(row);
 			
 		}
@@ -794,8 +831,9 @@ public class ProductManagementUtil implements ProductManagementInterface {
 				variant.setVariantId((Long)row.get("id"));
 				variant.setName((String)row.get("name"));
 				variant.setPrice((Integer)row.get("price"));
-				variant.setActive((Boolean)row.get("isActive"));
+				variant.setIsActive((Boolean)row.get("isActive"));
 				variant.setColor(new Color((Long)colorRow.get("id"), (String)colorRow.get("name")));
+				variant.setIsCOD((Boolean)row.get("cod"));
 				ProductItem item=new ProductItem();
 				item.setProductItemId((Long)row.get("itemId"));
 				item.setProductItemName((String)itemRow.get("name"));
@@ -829,11 +867,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		criteria1.setComparator(Criteria.EQUAL);
 		Criteria criteria2=new Criteria(new Column(PRODUCT_VARIANT,"itemId"), variant.getItem().getProductItemId());
 		criteria2.setComparator(Criteria.EQUAL);
-		criteria1.and(criteria2);
-
-		if(getProductVariantByUnique(criteria1)!=null) {
-			throw new ExceptionCause("Variant name already used under this item!",HttpStatus.BAD_REQUEST);
-		}
+		criteria1.childAnd(criteria2);
 		
 		if(getColorById(variant.getColor().getColorId())==null) {
 			throw new ExceptionCause("Color id not exist!",HttpStatus.BAD_REQUEST);
@@ -857,16 +891,6 @@ public class ProductManagementUtil implements ProductManagementInterface {
         	throw new ExceptionCause("Suitable variant id is neccessary to edit item!",HttpStatus.BAD_REQUEST);
         }
         
-		if(!variantFromDB.getName().equals(variant.getName()) || !variantFromDB.getItem().getProductItemId().equals(variant.getItem().getProductItemId())) {
-			Criteria criteria1=new Criteria(new Column(PRODUCT_VARIANT,"name"), variant.getName());
-			criteria1.setComparator(Criteria.EQUAL);
-			Criteria criteria2=new Criteria(new Column(PRODUCT_VARIANT,"itemId"), variant.getItem().getProductItemId());
-			criteria2.setComparator(Criteria.EQUAL);
-			criteria1.and(criteria2);
-			if(getProductVariantByUnique(criteria1)!=null) {
-				throw new ExceptionCause("Variant name already used under this item!",HttpStatus.BAD_REQUEST);
-			}
-		}
 		
 		if(getColorById(variant.getColor().getColorId())==null) {
 			throw new ExceptionCause("Color id not exist!",HttpStatus.BAD_REQUEST);
@@ -878,6 +902,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		cols.add(new Column(PRODUCT_VARIANT, "itemId",variant.getItem().getProductItemId()));
 	    cols.add(new Column(PRODUCT_VARIANT, "colorId",variant.getColor().getColorId()));
         cols.add(new Column(PRODUCT_VARIANT, "price",variant.getPrice()));
+        cols.add(new Column(PRODUCT_VARIANT, "cod",variant.getIsCOD()));
 
         uq.setFields(cols);
 		Criteria criteria=new Criteria(new Column(PRODUCT_VARIANT,"id"),variant.getVariantId());
@@ -892,19 +917,42 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		if(variant==null) {
 			throw new ExceptionCause("Variant id '"+variantId+"' not exist!", HttpStatus.BAD_REQUEST);
 		}
-        boolean isActive=variant.isActive();
-        
-		UpdateQuery uq=new UpdateQuery(PRODUCT_VARIANT);
-		
-		ArrayList<Column> cols=new ArrayList<Column>();
-        cols.add(new Column(PRODUCT_VARIANT, "isActive", isActive?false:true));
-        uq.setFields(cols);
-        
-		Criteria criteria=new Criteria(new Column(PRODUCT_VARIANT,"id"),variantId);
-		criteria.setComparator(Criteria.EQUAL);
-		
-		uq.setCriteria(criteria);
-		adapter.updateData(uq);
+        boolean isActive=variant.getIsActive();
+        adapter.beginTxn();
+        try {
+			UpdateQuery uq=new UpdateQuery(PRODUCT_VARIANT);
+			
+			ArrayList<Column> cols=new ArrayList<Column>();
+	        cols.add(new Column(PRODUCT_VARIANT, "isActive", isActive?false:true));
+	        uq.setFields(cols);
+	        
+			Criteria criteria=new Criteria(new Column(PRODUCT_VARIANT,"id"),variantId);
+			criteria.setComparator(Criteria.EQUAL);
+			
+			uq.setCriteria(criteria);
+			adapter.updateData(uq);
+			
+			if(isActive) {
+				List<Inventory> inventories=getInventoriesByVariantId(variantId);
+				if(inventories.size()>0) {
+					List<Object> inventoryIds=new ArrayList<>();
+					for(Inventory inventory : inventories) {
+						inventoryIds.add(inventory.getInventoryId());
+					}
+					DeleteQuery dq=new DeleteQuery(CART);
+					Criteria deleteCartCriteria=new Criteria(new Column(CART,"inventoryId"));
+					deleteCartCriteria.setDataCollection(inventoryIds);
+					deleteCartCriteria.setComparator(Criteria.IN);
+					dq.setCriteria(deleteCartCriteria);
+					
+					adapter.deleteData(dq);
+				}
+			}
+			adapter.commitTxn();
+        }catch (Exception e) {
+        	adapter.revertTxn();
+			throw e;
+		}
 		
 	}
 	
@@ -944,7 +992,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 			    if(criteria==null) {
 			    	criteria=criteria2;
 			    }else {
-			    	criteria2.and(criteria);
+			    	criteria2.childAnd(criteria);
 			    	criteria=criteria2;
 			    }
 			}
@@ -1125,7 +1173,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
    
     		BeanValidator.setNullForEmptyString(size);
     		Size oldSize=getSizeBy("name",size.getName());
-    		if(oldSize==null){
+    		if(oldSize==null || !oldSize.getProduct().getProductId().equals(size.getProduct().getProductId())){
     			String fieldNames[]= {"name","productId","description","ord"};
     			TableHolder th=new TableHolder(SIZE, fieldNames);
     			
@@ -1290,8 +1338,8 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		crit2.setComparator(Criteria.EQUAL);
 		Criteria crit3=new Criteria(new Column(TOPIC_VARIANT_RELATION,"variantId"),relation.getVariantId());
 		crit3.setComparator(Criteria.EQUAL);
-		crit1.and(crit2);
-		crit3.or(crit1);
+		crit1.childAnd(crit2);
+		crit3.childOr(crit1);
 		sq.setCriteria(crit3);
 		DataHolder dh=adapter.executeQuery(sq);
 		TableHolder th=dh.getTable(TOPIC_VARIANT_RELATION);
@@ -1346,7 +1394,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 			crit1.setComparator(Criteria.EQUAL);
 			Criteria crit2=new Criteria(new Column(TOPIC_VARIANT_RELATION,"variantId"),relation.getVariantId());
 			crit2.setComparator(Criteria.EQUAL);
-			crit1.and(crit2);
+			crit1.childAnd(crit2);
 			dq.setCriteria(crit1);
 			adapter.deleteData(dq);
     	}else {
@@ -1392,6 +1440,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 				variant.setVariantId((Long)row.get("id"));
 				variant.setName((String)row.get("name"));
 				variant.setPrice((Integer)row.get("price"));
+				variant.setIsActive((Boolean)row.get("isActive"));
 				variant.setItem(item);
 				variants.add(variant);
 				
@@ -1441,7 +1490,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		criteria.setComparator(Criteria.EQUAL);
 		Criteria criteria2=new Criteria(new Column(PRODUCT_IMAGES,"name"), name);
 		criteria2.setComparator(Criteria.EQUAL);
-		criteria.and(criteria2);
+		criteria.childAnd(criteria2);
 		
 		sq.setCriteria(criteria);
 		DataHolder dh=adapter.executeQuery(sq);
@@ -1483,6 +1532,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 			image.setVariant(variant);
 			image.setUrl((String)row.get("imageUrl"));
 			image.setOrd((Integer)row.get("ord"));
+			image.setImageKey((String)row.get("imageKey"));
 			return image;
 			
 			
@@ -1492,7 +1542,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 	
 	public void createImageForVariants(VariantImage imageInfo) throws Exception {
 		
-		String fieldNames[]= {"name","ord","variantId","imageUrl"};
+		String fieldNames[]= {"name","ord","variantId","imageUrl","imageKey"};
 		TableHolder th=new TableHolder(PRODUCT_IMAGES, fieldNames);
 		Row row=new Row();
 		Map<String,Object> columns=row.getColumns();
@@ -1500,13 +1550,14 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		columns.put("variantId",imageInfo.getVariant().getVariantId());
 		columns.put("ord",imageInfo.getOrd());
 		columns.put("imageUrl",imageInfo.getUrl());
+		columns.put("imageKey",imageInfo.getImageKey());
 		th.setRow(row);
 		adapter.persistData(th);
 		
 	}
 	
 	public void deletImageById(Long imageId) throws Exception {
-		String tomcatBase = System.getProperty("catalina.base")+"\\wtpwebapps\\shoppingapp\\resources\\img";
+
 		VariantImage image=getVariantImageById(imageId);
 		if(image==null) {
 			throw new ExceptionCause("Invalid image id", HttpStatus.BAD_REQUEST);
@@ -1520,8 +1571,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		int affected=adapter.deleteData(dq);
 		
 		if(affected>0) {
-			String filePath=tomcatBase+File.separator+image.getUrl();
-			deleteImages(filePath);
+                AWSS3StorageService.deleteFile(image.getImageKey());
 		}
 	}
 	
@@ -1630,7 +1680,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		Criteria criteria2=new Criteria(new Column(PRODUCT_INVENTORY, "sizeId"), inventory.getSize().getSizeId());
 		criteria2.setComparator(Criteria.EQUAL);
 		
-		criteria.and(criteria2);
+		criteria.childAnd(criteria2);
 		
 		Inventory inventoryFromDB=getInventoryByUnique(criteria);
 		if(inventoryFromDB!=null) {
@@ -1659,7 +1709,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		Criteria criteria2=new Criteria(new Column(PRODUCT_INVENTORY, "sizeId"), inventory.getSize().getSizeId());
 		criteria2.setComparator(Criteria.EQUAL);
 		
-		criteria.and(criteria2);
+		criteria.childAnd(criteria2);
 		
 		UpdateQuery uq=new UpdateQuery(PRODUCT_INVENTORY);
 		ArrayList<Column> cols=new ArrayList<Column>();
@@ -1674,6 +1724,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 	@Override
 	public void deleteInventories(Long inventoryId) throws Exception {
 
+		canDeleteInventory(inventoryId);
 		Criteria criteria=new Criteria(new Column(PRODUCT_INVENTORY, "id"), inventoryId);
 		criteria.setComparator(Criteria.EQUAL);
 		
@@ -1683,17 +1734,46 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		adapter.deleteData(dq);
 	}
 	
+	private void canDeleteInventory(Long inventoryId) throws Exception {
+		SelectQuery sq=new SelectQuery(PRODUCT_INVENTORY);
+		Join join1=new Join(new Column(PRODUCT_INVENTORY,"id"),new Column(ORDER_VARIANT_REL,"inventoryId"), Join.INNER_JOIN);
+		Join join2=new Join(new Column(ORDER_VARIANT_REL,"orderId"),new Column(ORDERS,"id"), Join.INNER_JOIN);
+		sq.setJoin(join1);
+		sq.addJoin(join2);
+		
+		Criteria criteria1=new Criteria(new Column(PRODUCT_INVENTORY, "id"), inventoryId);
+		criteria1.setComparator(Criteria.EQUAL);
+		Criteria criteria2=new Criteria(new Column(ORDERS,"status"),Status.OPEN.toString());
+		criteria2.setComparator(Criteria.EQUAL);
+		Criteria criteria3=new Criteria(new Column(ORDERS, "status"),Status.WAITING.toString());
+		criteria3.setComparator(Criteria.EQUAL);
+		Criteria criteria4=new Criteria(new Column(ORDERS,"ordertime"),DateManipulatorUtil.addDays(new Date(),-1).getTime());
+		criteria4.setComparator(Criteria.GREATER);
+		criteria1.and(criteria2);
+		criteria2.childOr(criteria3);
+		criteria3.childAnd(criteria4);
+		
+		sq.setCriteria(criteria1);
+		DataHolder dh=adapter.executeQuery(sq);
+		TableHolder th=dh.getTable(PRODUCT_INVENTORY);
+		
+		if(th!=null && th.getRows().size()>0) {
+			throw new ExceptionCause("Cannot delete inventory as there are active orders!",HttpStatus.BAD_REQUEST);
+		}
+	}
+	
 	//banners
 	
 	@Override
 	public void createBanner(BannerImage banner) throws Exception {
-		String fieldNames[]= {"name","ord","imageUrl"};
+		String fieldNames[]= {"name","ord","imageUrl","imageKey"};
 		TableHolder th=new TableHolder(BANNER_IMAGES, fieldNames);
 		Row row=new Row();
 		Map<String,Object> columns=row.getColumns();
 		columns.put("name",banner.getName());
 		columns.put("ord",banner.getOrd());
 		columns.put("imageUrl",banner.getUrl());
+		columns.put("imageKey",banner.getImageKey());
 		th.setRow(row);
 		adapter.persistData(th);
 		
@@ -1713,6 +1793,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
             banner.setName((String)row.get("name"));
             banner.setUrl((String)row.get("imageUrl"));
             banner.setOrd((Integer)row.get("ord"));
+            banner.setImageKey((String)row.get("imageKey"));
 		}
 		return banner;
 	}
@@ -1720,7 +1801,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 	
 	@Override
 	public void deleteBannerImageById(Long imageId) throws Exception {
-		String tomcatBase = System.getProperty("catalina.base")+"\\wtpwebapps\\shoppingapp\\resources\\img";
+;
 		BannerImage image=getBannerImageById(imageId);
 		if(image==null) {
 			throw new ExceptionCause("Invalid image id", HttpStatus.BAD_REQUEST);
@@ -1734,8 +1815,7 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		int affected=adapter.deleteData(dq);
 		
 		if(affected>0) {
-			String filePath=tomcatBase+File.separator+image.getUrl();
-			deleteImages(filePath);
+			AWSS3StorageService.deleteFile(image.getImageKey());	
 		}
 	}
 	
@@ -1799,18 +1879,213 @@ public class ProductManagementUtil implements ProductManagementInterface {
 		return images;
 	}
 	
+	//order functions
+	public ArrayList<OrderEntity> getOrders(GetInfo info){
+		 ArrayList<OrderEntity> orders=new ArrayList<>();
+		 try {
+			 SelectQuery sq=new SelectQuery(ORDERS);
+			 OrderBy orderBy=new OrderBy(new Column(ORDERS,"id"),Order.ASC);
+			 sq.setOrderBy(orderBy);
+			 
+			 Criteria criteria=null;
+			 if(info.getPaginationKey()!=null) {
+				criteria=new Criteria(new Column(ORDERS,"id"), info.getPaginationKey());
+				criteria.setComparator(Criteria.GREATER);
+			 }
+			
+			 if(info.getFilterBy()!=null) {
+				 Criteria criteria2=new Criteria(new Column(ORDERS,"status"),info.getFilterValue());
+				 criteria2.setComparator(Criteria.EQUAL);
+				 if(criteria==null) {
+					 criteria=criteria2;
+				 }else {
+					 criteria2.childAnd(criteria);
+					 criteria=criteria2;
+				 }
+			 }
+			
+			 if(criteria!=null) {
+				sq.setCriteria(criteria);
+			 }
+			 
+			 if(info.getRange()!=null) {
+				sq.setLimit(info.getRange());
+			 }else {
+				sq.setLimit(10);
+			 }
+			 
+			 
+			 DataHolder dh=adapter.executeQuery(sq);
+			 TableHolder th=dh.getTable(ORDERS);
+			 
+			 if(th!=null) {
+					Map<Integer,Row> rows=th.getRows();
+
+					for(int i=0;i<rows.size();i++) {
+						Row row=rows.get(i);
+						OrderEntity order=new OrderEntity();
+						order.setOrderId((Long)row.get("id"));
+						order.setDate(new Date((Long)row.get("ordertime")));
+						order.setStatusCode(Status.valueOf((String)row.get("status")));
+						order.setClientSecret((String)row.get("clientsecret"));
+						Address address=new Address();
+						address.setAddressId((Long)row.get("orderedby"));
+						order.setShipTo(address);
+						orders.add(order);
+					}
+			}
+			 
+			 
+		 }catch (Exception e) {
+			e.printStackTrace();
+		 }
+		 return orders;
+	}
+	
+	
+	public void closeOrder(Long id)throws Exception{
+	      UpdateQuery uq=new UpdateQuery(ORDERS);
+	      ArrayList<Column> cols=new ArrayList<Column>();
+		  cols.add(new Column(ORDERS,"status",Status.CLOSED.toString()));
+		  uq.setFields(cols);
+		  Criteria crit=new Criteria(new Column(ORDERS,"id"),id);
+		  crit.setComparator(Criteria.EQUAL);
+		  uq.setCriteria(crit);
+		  adapter.updateData(uq); 
+	}
+
+	public OrderEntity getOrderById(Long id)throws Exception{
+		SelectQuery sq=new SelectQuery(ORDERS);
+		Criteria criteria=new Criteria(new Column(ORDERS,"id"),id);
+		criteria.setComparator(Criteria.EQUAL);
+		sq.setCriteria(criteria);
+		
+		Join join1=new Join(new Column(ORDERS, "id"),new Column(ORDER_VARIANT_REL,"orderId"),Join.LEFT_JOIN);
+		Join join2=new Join(new Column(ORDERS, "orderedby"),new Column(USER_ADDRESS,"addressId"),Join.INNER_JOIN);
+		Join join3=new Join(new Column(ORDER_VARIANT_REL, "inventoryId"),new Column(PRODUCT_INVENTORY,"id"),Join.INNER_JOIN);
+		Join join4=new Join(new Column(USER_ADDRESS, "userId"),new Column(USERS,"id"),Join.LEFT_JOIN);
+		Join join5=new Join(new Column(PRODUCT_INVENTORY,"variantId"),new Column(PRODUCT_VARIANT,"id"),Join.INNER_JOIN);
+		Join join6=new Join(new Column(PRODUCT_INVENTORY,"sizeId"),new Column(SIZE,"id"),Join.INNER_JOIN);
+		Join join7=new Join(new Column(PRODUCT_VARIANT,"itemId"),new Column(PRODUCT_ITEM,"id"),Join.INNER_JOIN);
+		Join join8=new Join(new Column(PRODUCT_VARIANT,"colorId"),new Column(COLORS,"id"),Join.INNER_JOIN);
+	
+		sq.setJoin(join1);
+		sq.addJoin(join2);
+		sq.addJoin(join3);
+		sq.addJoin(join4);
+		sq.addJoin(join5);
+		sq.addJoin(join6);
+		sq.addJoin(join7);
+		sq.addJoin(join8);
+		
+		DataHolder dh=adapter.executeQuery(sq);
+		TableHolder orderTh=dh.getTable(ORDERS);
+		TableHolder addressTh=dh.getTable(USER_ADDRESS);
+		TableHolder userTh=dh.getTable(USERS);
+		TableHolder ordVarRelTh=dh.getTable(ORDER_VARIANT_REL);
+		TableHolder sizeTh=dh.getTable(SIZE);
+		TableHolder variantTh=dh.getTable(PRODUCT_VARIANT);
+		TableHolder itemTh=dh.getTable(PRODUCT_ITEM);
+		TableHolder colorTh=dh.getTable(COLORS);
+		
+		if(orderTh!=null && orderTh.getRows().size()>0) {
+			Row orderRow=orderTh.getRows().get(0);
+			Row addressRow=addressTh.getRows().get(0);
+			Row userRow=userTh.getRows().get(0);
+			Map<Integer,Row> ordVarRelRows=null;
+			Map<Integer,Row> sizeRows=null;
+			Map<Integer,Row> variantRows=null;
+			Map<Integer,Row> itemRows=null;
+			Map<Integer,Row> colorRows=null;
+			
+			if(ordVarRelTh!=null) {
+				ordVarRelRows=ordVarRelTh.getRows();
+				sizeRows=sizeTh.getRows();
+				variantRows=variantTh.getRows();
+				itemRows=itemTh.getRows();
+				colorRows=colorTh.getRows();
+			}
+
+			OrderEntity order=new OrderEntity();
+			order.setOrderId((Long)orderRow.get("id"));
+			order.setDate(new Date((Long)orderRow.get("ordertime")));
+			order.setStatusCode(Status.valueOf((String)orderRow.get("status")));
+			Address address=new Address();
+			address.setAddressId((Long)addressRow.get("addressId"));
+			address.setAddressLine1((String)addressRow.get("address_line1"));
+			address.setAddressLine2((String)addressRow.get("address_line2"));
+			address.setCity((String)addressRow.get("city"));
+			address.setState((String)addressRow.get("state"));
+			address.setCountry((String)addressRow.get("country"));
+			address.setPostalCode((String)addressRow.get("postal_code"));
+			address.setMobile((String)addressRow.get("mobile"));
+			order.setShipTo(address);
+			
+			User user=new User();
+			user.setEmail((String)userRow.get("email"));
+    		user.setUserid((Long)userRow.get("id"));
+    		user.setPhone((String)userRow.get("phoneno"));
+    		user.setFirstname((String)userRow.get("firstname"));
+    		user.setLastname((String)userRow.get("lastname"));
+    		order.setOrderedBy(user);
+			
+			
+			List<Inventory> inventories=new ArrayList<>();
+			
+			for(int i=0;i<ordVarRelRows.size();i++) {
+				 Row orderVarRelRow=ordVarRelRows.get(i);
+				 Row sizeRow=sizeRows.get(i);
+				 Row variantRow=variantRows.get(i);
+				 Row itemRow=itemRows.get(i);
+				 Row colorRow=colorRows.get(i);
+				 
+				 Inventory inventory=new Inventory();
+				 
+				 inventory.setInventoryId((Long)orderVarRelRow.get("inventoryId"));
+				 inventory.setOrderedCount((Integer)orderVarRelRow.get("count"));
+				 Size size=new Size();
+				 size.setSizeId((Long)sizeRow.get("id"));
+				 size.setName((String)sizeRow.get("name"));
+				 inventory.setSize(size);
+				 
+				 ProductVariant variant=new ProductVariant();
+				 variant.setVariantId((Long)variantRow.get("id"));
+				 variant.setName((String)variantRow.get("name"));
+				 variant.setPrice((Integer)variantRow.get("price"));
+				 variant.setColor(new Color((Long)colorRow.get("id"), (String)colorRow.get("name"),(String)colorRow.get("csscolor")));
+				 variant.setIsActive((Boolean)variantRow.get("isActive"));
+				 //set product item in variant
+				 ProductItem item=new ProductItem();
+				 item.setProductItemId((Long)itemRow.get("id"));
+				 item.setProductItemName((String)itemRow.get("name"));
+				 item.setDescription(itemRow.get("description")==null?"":(String)itemRow.get("description"));
+				 item.setModifiedAt((Long)itemRow.get("modifiedat"));
+				 item.setCreatedAt((Long)itemRow.get("createdat"));
+				 item.setIsActive((Boolean)itemRow.get("isActive"));
+				 variant.setItem(item);
+				 
+				 inventory.setVariant(variant);
+				 
+				 inventories.add(inventory);
+				 
+				 
+			}
+			order.setInventories(inventories);
+			return order;
+ 
+		}
+		return null;
+
+	}
+	
 	
 	//helper methods
 	public static String splitCharactersByPercentage(String arg) {
 		if(arg!=null) {
 			StringBuilder builder=new StringBuilder();
-			char chArr[]=arg.toCharArray();
-			builder.append('%');
-			for(int i=0;i<chArr.length;i++) {
-				builder.append(chArr[i]);
-				builder.append('%');
-			}
-			
+			builder.append("%");
+			builder.append(arg);
+			builder.append("%");
 			return builder.toString();
 		}
 		return arg;

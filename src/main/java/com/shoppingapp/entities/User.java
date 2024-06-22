@@ -1,6 +1,7 @@
 package com.shoppingapp.entities;
 
 import javax.validation.constraints.Pattern;
+import javax.validation.constraints.Size;
 
 
 public class User {
@@ -10,26 +11,22 @@ public class User {
 	@Pattern(regexp = "M|F",message = "Enter valid gender")
 	private String gender;
 	
-	@Pattern(regexp = "[A-Za-z]{1,20}",message="Enter valid first name")
+	@Size(min = 1,max = 20,message="Enter valid first name")
 	private String firstname;
 	
-	@Pattern(regexp = "[A-Za-z]{1,20}",message="Enter valid last name")
+	@Size(min = 1,max = 20,message="Enter valid last name")
 	private String lastname;
 	
-	@Pattern(regexp = "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*$",message="Enter valid email")
+	@Pattern(regexp = "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*$",message="Invalid email")
+	@Size(max = 320,message = "Invalid email")
 	private String email;
-	
-	@Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&-+=()])(?=\\S+$).{8,20}$",message="Enter valid password")
+
+	@Size(min = 6,max = 20,message="Invalid password")
 	private String password;
 	
 	@Pattern(regexp = "[0-9]{10}",message = "Enter valid phone number")
 	private String phone;
 	
-	private String addressline1;
-	private String addressline2;
-	private String towncity;
-	private String county;
-	private String country;
 	private Long roleid;
 	private String salt;
 	private boolean isAuthenticated=false;
@@ -77,36 +74,6 @@ public class User {
 	public void setPhone(String phone) {
 		this.phone = phone;
 	}
-	public String getAddressline1() {
-		return addressline1;
-	}
-	public void setAddressline1(String addressline1) {
-		this.addressline1 = addressline1;
-	}
-	public String getAddressline2() {
-		return addressline2;
-	}
-	public void setAddressline2(String addressline2) {
-		this.addressline2 = addressline2;
-	}
-	public String getTowncity() {
-		return towncity;
-	}
-	public void setTowncity(String towncity) {
-		this.towncity = towncity;
-	}
-	public String getCounty() {
-		return county;
-	}
-	public void setCounty(String county) {
-		this.county = county;
-	}
-	public String getCountry() {
-		return country;
-	}
-	public void setCountry(String country) {
-		this.country = country;
-	}
 	public Long getRoleid() {
 		return roleid;
 	}
@@ -120,20 +87,20 @@ public class User {
 		this.salt = salt;
 	}
 	
-	public boolean isAuthenticated() {
+	public boolean getIsAuthenticated() {
 		return isAuthenticated;
 	}
-	public void setAuthenticated(boolean isAuthenticated) {
+	public void setIsAuthenticated(boolean isAuthenticated) {
 		this.isAuthenticated = isAuthenticated;
 	}
-	
 	@Override
 	public String toString() {
 		return "User [userid=" + userid + ", gender=" + gender + ", firstname=" + firstname + ", lastname=" + lastname
-				+ ", email=" + email + ", password=" + password + ", phone=" + phone + ", addressline1=" + addressline1
-				+ ", addressline2=" + addressline2 + ", towncity=" + towncity + ", county=" + county + ", country="
-				+ country + ", roleid=" + roleid + "]";
+				+ ", email=" + email + ", password=" + password + ", phone=" + phone + ", roleid=" + roleid + ", salt="
+				+ salt + ", isAuthenticated=" + isAuthenticated + "]";
 	}
+	
+	
 
 	
 }

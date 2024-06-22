@@ -126,29 +126,5 @@ public class SelectQuery {
 	}
 	
     
-	public static void main(String args[]) {
-		SelectQuery sq=new SelectQuery("users");
-		ArrayList<Column> columns=new ArrayList<Column>();
-		Column col1=new Column("users","id");
-		Column col2=new Column("users","name");
-		Column col3=new Column("sales","id");
-		Column col4=new Column("sales","price");
-		columns.add(col1);
-		columns.add(col2);
-		columns.add(col3);
-		columns.add(col4);
-		sq.setFields(columns);
-		Join join = new Join(col1,new Column("sales","userid"),Join.LEFT_JOIN);
-		sq.setJoin(join);
-		
-		Criteria criteria=new Criteria(new Column("users","username"),"seenu");
-		criteria.setComparator(Criteria.NOTEQUAL);
-		Criteria criteria2=new Criteria(new Column("users","id"),Long.valueOf(1000));
-		criteria2.setComparator(Criteria.GREATEREQUAL);
-		criteria.and(criteria2);
-		sq.setCriteria(criteria);
-		
-		System.out.println(sq.getSelectQueryString());
-	}
 
 }

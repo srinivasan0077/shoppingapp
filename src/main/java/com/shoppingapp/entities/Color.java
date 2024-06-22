@@ -18,6 +18,8 @@ public class Color {
 	@Pattern(regexp = "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",message = "'cssColor' is not valid")
 	private String cssColor;
 	
+	public Color() {}
+	
 	public Color(Long colorId, String name) {
 		super();
 		this.colorId = colorId;

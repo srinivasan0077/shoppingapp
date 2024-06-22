@@ -1,10 +1,5 @@
 package com.shoppingapp.controllers;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.util.ArrayList;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,7 +33,7 @@ import com.shoppingapp.entities.Size;
 import com.shoppingapp.entities.Topic;
 import com.shoppingapp.entities.VariantImage;
 import com.shoppingapp.productUtils.ProductManagementInterface;
-import com.shoppingapp.productUtils.ProductManagementUtil;
+import com.shoppingapp.utils.AWSS3StorageService;
 import com.shoppingapp.utils.BeanFactoryWrapper;
 import com.shoppingapp.utils.BeanValidator;
 import com.shoppingapp.utils.EncryptionUtil;
@@ -49,16 +44,12 @@ import javax.validation.Valid;
 
 
 
-@CrossOrigin(origins = {"http://localhost:3000"},allowCredentials = "true")
+@CrossOrigin(origins = {"http://localhost:3000","https://www.royall.in","https://royall.in"},allowCredentials = "true")
 @Controller
 public class ProductController {
 
 	private static final Logger logger=LogManager.getLogger(ProductController.class);
 	
-	@RequestMapping(path={"/","/home"},method=RequestMethod.GET)
-	public String getHome() {
-		return "home";
-	}
 	
 	@RequestMapping(path={"/admin/category"},method=RequestMethod.GET)
 	public String getCategory() {
@@ -738,20 +729,20 @@ public class ProductController {
 			 validateImageUpload(imageInfoJson,file,util);
 			 
 			 //Write Image
-			 byte bytes[]=file.getBytes();
+			 //byte bytes[]=file.getBytes();
 			
-		     String tomcatBase = System.getProperty("catalina.base")+"\\wtpwebapps\\shoppingapp\\resources\\img";
+		     //String tomcatBase = System.getProperty("catalina.base")+"\\wtpwebapps\\shoppingapp\\resources\\img";
 		     String hashedFileName=EncryptionUtil.getSHA1(id+":"+imageInfoJson.getString("name")+file.getOriginalFilename())+getExtension(file.getContentType());
-			 String filePath=tomcatBase+File.separator+hashedFileName;
-			 File newFile=new File(filePath);
-			 BufferedOutputStream stream = new BufferedOutputStream(
-					new FileOutputStream(newFile));
-			 stream.write(bytes);
-			 stream.flush();
-			 stream.close();
-			 fileToBeDeleted=filePath;
+			 //String filePath=tomcatBase+File.separator+hashedFileName;
+			 //File newFile=new File(filePath);
+			 //BufferedOutputStream stream = new BufferedOutputStream(new FileOutputStream(newFile));
+			 //stream.write(bytes);
+			 //stream.flush();
+			 //stream.close();
+		     String filePath=AWSS3StorageService.uploadFileAndGetURL(file, hashedFileName);
+			 fileToBeDeleted=hashedFileName;
 			 
-			 System.out.println(filePath);
+			 System.out.println(hashedFileName);
 			 
 			 //Persist Image Info
 			 VariantImage variantImageInfo=new VariantImage();
@@ -760,7 +751,8 @@ public class ProductController {
 			 ProductVariant variant=new ProductVariant();
 			 variant.setVariantId(id);
 			 variantImageInfo.setVariant(variant);
-			 variantImageInfo.setUrl(hashedFileName);
+			 variantImageInfo.setUrl(filePath);
+			 variantImageInfo.setImageKey(hashedFileName);
 			 util.createImageForVariants(variantImageInfo);
 				
 			 response=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS, null),HttpStatus.OK);
@@ -776,7 +768,7 @@ public class ProductController {
 			
 			if(exception) {
 				if(fileToBeDeleted!=null) {
-					util.deleteImages(fileToBeDeleted);
+					AWSS3StorageService.deleteFile(fileToBeDeleted);
 				}
 			}
 			util.closeConnection();
@@ -1170,34 +1162,34 @@ public class ProductController {
 		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
 		String fileToBeDeleted=null;
 		boolean exception=false;
-		
 		try {
 			 JSONObject imageInfoJson=new JSONObject(imageInfo);
 			 
 			 validateBannerImageUpload(imageInfoJson,file,util);
 			 
 			 //Write Image
-			 byte bytes[]=file.getBytes();
+			 //byte bytes[]=file.getBytes();
 			
-		     String tomcatBase = System.getProperty("catalina.base")+"\\wtpwebapps\\shoppingapp\\resources\\img";
+		     //String tomcatBase = System.getProperty("catalina.base")+"\\wtpwebapps\\shoppingapp\\resources\\img";
 		     String hashedFileName=EncryptionUtil.getSHA1("banner"+":"+imageInfoJson.getString("name")+file.getOriginalFilename())+getExtension(file.getContentType());
-			 String filePath=tomcatBase+File.separator+hashedFileName;
-			 File newFile=new File(filePath);
-			 BufferedOutputStream stream = new BufferedOutputStream(
-					new FileOutputStream(newFile));
-			 stream.write(bytes);
-			 stream.flush();
-			 stream.close();
-			 fileToBeDeleted=filePath;
+			 //String filePath=tomcatBase+File.separator+hashedFileName;
+			 //File newFile=new File(filePath);
+			 //BufferedOutputStream stream = new BufferedOutputStream(
+			//		new FileOutputStream(newFile));
+			 //stream.write(bytes);
+			 //stream.flush();
+			 //stream.close();
+			 //fileToBeDeleted=filePath;
 			 
-			 System.out.println(filePath);
-			 
+			 String imageUrl=AWSS3StorageService.uploadFileAndGetURL(file, hashedFileName);
+		     fileToBeDeleted=hashedFileName;
 			 //Persist Image Info
 			 BannerImage bannerImage=new BannerImage();
 			 bannerImage.setName(imageInfoJson.getString("name"));
 			 bannerImage.setOrd(imageInfoJson.getInt("ord"));
-			 bannerImage.setUrl(hashedFileName);
-
+			 bannerImage.setUrl(imageUrl);
+             bannerImage.setImageKey(hashedFileName);
+             
 			 util.createBanner(bannerImage);
 				
 			 response=new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS, null),HttpStatus.OK);
@@ -1213,7 +1205,7 @@ public class ProductController {
 			
 			if(exception) {
 				if(fileToBeDeleted!=null) {
-					util.deleteImages(fileToBeDeleted);
+					AWSS3StorageService.deleteFile(fileToBeDeleted);
 				}
 			}
 			util.closeConnection();
@@ -1308,6 +1300,66 @@ public class ProductController {
 		
         return response;
 	}
+	
+	@RequestMapping(path={"/admin/api/orders/list"},method=RequestMethod.POST,consumes = {"application/json;charset=utf-8"})
+	@ResponseBody
+	public ResponseEntity<Response> getOrders(@Valid @RequestBody GetInfo info,BindingResult validationResult) {
+		if(validationResult.hasErrors()) {
+			FieldError error=validationResult.getFieldError();
+			return  new ResponseEntity<Response>(new Response(error.getDefaultMessage(),Response.BAD_REQUEST, null),HttpStatus.BAD_REQUEST);
+		}
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		try {
+			response= new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,util.getOrders(info)),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	}
+	
+	@RequestMapping(path={"/admin/api/orders/{id}"},method=RequestMethod.GET)
+	@ResponseBody
+	public ResponseEntity<Response> getOrderById(@PathVariable Long id) {
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		try {
+			response= new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,util.getOrderById(id)),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	}
+	
+	@RequestMapping(path={"/admin/api/orders/{id}/_close"},method=RequestMethod.GET)
+	@ResponseBody
+	public ResponseEntity<Response> closeOrder(@PathVariable Long id) {
+		
+		ResponseEntity<Response> response;
+		ProductManagementInterface util=(ProductManagementInterface)BeanFactoryWrapper.getBeanFactory().getBean("productutil");
+		try {
+			util.closeOrder(id);
+			response= new ResponseEntity<Response>(new Response("Operation Successful!",Response.SUCCESS,null),HttpStatus.OK);
+		}catch (Exception e) {
+			logger.log(Level.ERROR, ExceptionCause.getStackTrace(e));
+			response= new ResponseEntity<Response>(new Response("Internal Server Error!",Response.INTERNAL_ERROR,null),HttpStatus.INTERNAL_SERVER_ERROR);
+		}finally {
+			util.closeConnection();
+		}
+		
+        return response;
+	}
+	
 	
 	private String getExtension(String input) {
 		String[] split=input.split("/");

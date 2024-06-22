@@ -2,6 +2,7 @@ package com.shoppingapp.dbutils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 
 public class Criteria {
@@ -9,11 +10,13 @@ public class Criteria {
 	public static HashMap<Integer,String> conditions=null;
 	public static HashMap<Integer,String> comparators=null;
 	private Column column;
-	private ArrayList<Object> dataCollection=null;
+	private List<Object> dataCollection=null;
 	private Integer comparator=null;
 	private Integer condition=null;
 	private Criteria rightAndCriteria=null;
     private Criteria rightOrCriteria=null;
+    private Criteria childRightAndCriteria=null;
+    private Criteria childRightOrCriteria=null;
     private SelectQuery subQuery;
     
 	public static Integer AND=0;
@@ -68,11 +71,11 @@ public class Criteria {
 		this.dataCollection.add(data);
 	}
 
-	public ArrayList<Object> getDataCollection() {
+	public List<Object> getDataCollection() {
 		return dataCollection;
 	}
 
-	public void setDataCollection(ArrayList<Object> dataCollection) {
+	public void setDataCollection(List<Object> dataCollection) {
 		this.dataCollection = dataCollection;
 	}
 
@@ -102,6 +105,7 @@ public class Criteria {
 		rightAndCriteria=null;
 	}
 	
+	
 	public static void loadComparatorsAndConditions() {
 		
 		comparators=new HashMap<Integer, String>();
@@ -123,7 +127,7 @@ public class Criteria {
 		criteriaString.append(this.column.getTableName()).append(".").append(this.column.getColumnName()).append(" ")
 		.append(comparators.get(this.comparator)).append(" ");
 		if(dataCollection!=null) {
-		   if(dataCollection.size()==1) {
+		   if(dataCollection.size()==1 && comparator!=Criteria.IN && comparator!=Criteria.NOTIN) {
 			      criteriaString.append("?");			 
 		   }else {
 			    criteriaString.append("(");
@@ -150,15 +154,24 @@ public class Criteria {
 	
 	public String getCriteria() {
 		StringBuilder currentCriteria=new StringBuilder("( ");
-		if(rightAndCriteria!=null) {
-			 currentCriteria.append(getCriteriaString()).append(" ")
-			 .append(conditions.get(Criteria.AND)).append(" ").append(rightAndCriteria.getCriteria()).append(" )");
-		}else if(rightOrCriteria!=null) {
+		if(childRightAndCriteria!=null) {
 			currentCriteria.append(getCriteriaString()).append(" ")
-			.append(conditions.get(Criteria.OR)).append(" ").append(rightOrCriteria.getCriteria()).append(" )");
+			 .append(conditions.get(Criteria.AND)).append(" ").append(childRightAndCriteria.getCriteria()).append(" )");
+		}else if(childRightOrCriteria!=null) {
+			currentCriteria.append(getCriteriaString()).append(" ")
+			.append(conditions.get(Criteria.OR)).append(" ").append(childRightOrCriteria.getCriteria()).append(" )");
 		}else {
 			currentCriteria.append(getCriteriaString()).append(" )");
 		}
+		
+		if(rightAndCriteria!=null) {
+			 currentCriteria.append(" ")
+			 .append(conditions.get(Criteria.AND)).append(" ").append(rightAndCriteria.getCriteria());
+		}else if(rightOrCriteria!=null) {
+			currentCriteria.append(" ")
+			.append(conditions.get(Criteria.OR)).append(" ").append(rightOrCriteria.getCriteria());
+		}
+		
 		return currentCriteria.toString();
 	}
 	
@@ -186,11 +199,33 @@ public class Criteria {
 			}
 		}
 		
+		if(childRightAndCriteria!=null) {
+			childRightAndCriteria.addValues(values);
+		}else if(childRightOrCriteria!=null) {
+			childRightOrCriteria.addValues(values);
+		}
+		
 		if(rightAndCriteria!=null) {
 		      rightAndCriteria.addValues(values);
 		}else if(rightOrCriteria!=null) {
 		      rightOrCriteria.addValues(values);
 		}
+	}
+	
+	public Criteria getChildRightAndCriteria() {
+		return childRightAndCriteria;
+	}
+
+	public void childAnd(Criteria childRightAndCriteria) {
+		this.childRightAndCriteria = childRightAndCriteria;
+	}
+
+	public Criteria getChildRightOrCriteria() {
+		return childRightOrCriteria;
+	}
+
+	public void childOr(Criteria childRightOrCriteria) {
+		this.childRightOrCriteria = childRightOrCriteria;
 	}
 	
 	@Override
@@ -204,13 +239,22 @@ public class Criteria {
 		criteria1.setComparator(Criteria.EQUAL);
 		Criteria criteria2=new Criteria(new Column("PRODUCT_VARIANT","itemId"), 34);
 		criteria2.setComparator(Criteria.EQUAL);
-		criteria1.and(criteria2);
+		criteria1.childAnd(criteria2);
 		Criteria criteria3=new Criteria(new Column("PRODUCT_VARIANT","itemId"), 44);
 		criteria3.setComparator(Criteria.EQUAL);
-		criteria3.or(criteria1);
+		criteria3.childOr(criteria1);
 		System.out.println(criteria3.getCriteria());
 		System.out.println(criteria3.getValuesToBePlaced());
 	}
+
+	public Criteria getRightAndCriteria() {
+		return rightAndCriteria;
+	}
+
+	public Criteria getRightOrCriteria() {
+		return rightOrCriteria;
+	}
+
 
 	
 }

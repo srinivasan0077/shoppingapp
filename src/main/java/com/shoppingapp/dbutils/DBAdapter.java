@@ -6,9 +6,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.mysql.cj.MysqlType;
@@ -30,9 +32,11 @@ public class DBAdapter {
 		
 		
 		ArrayList<Object> joinValues=query.getJoinValuesToBePlaced();
+		int temp=1;
 		for(int i=0;i<joinValues.size();i++) {
 			  Object data=joinValues.get(i);
-			  convertAndSetObject(st,i+1,data);
+			  convertAndSetObject(st,temp,data);
+			  temp+=1;
 		}
 		
 		
@@ -40,17 +44,12 @@ public class DBAdapter {
 			ArrayList<Object> values=query.getCriteria().getValuesToBePlaced();
 			for(int i=0;i<values.size();i++) {
 				  Object data=values.get(i);
-				  convertAndSetObject(st,i+1,data);
+				  convertAndSetObject(st,temp,data);
+				  temp+=1;
 			}
 		}
 		
-		if(query.getCriteria()!=null) {
-			ArrayList<Object> values=query.getCriteria().getValuesToBePlaced();
-			for(int i=0;i<values.size();i++) {
-				  Object data=values.get(i);
-				  convertAndSetObject(st,i+1,data);
-			}
-		}
+		
 	    ResultSet rs=st.executeQuery();
 	    int rowTracker=0;
 	    ResultSetMetaData metadata=rs.getMetaData();
@@ -166,16 +165,16 @@ public class DBAdapter {
 		 for(int i=0;i<rowMap.size();i++) {
 
 			 Row row=rowMap.get(i);
-			 int temp=0,tracker=0;
+			 int tracker=1;
 			 for(int j=0;j<fields.length;j++) {
 				 if(th.getPkFieldIndex()!=null && j==th.getPkFieldIndex()) {
 					 continue;
 				 }
 				 Object obj=row.get(fields[j]);
-				 convertAndSetObject(pt,tracker+1,obj);
+				 convertAndSetObject(pt,tracker,obj);
 				 tracker+=1;
-				 temp=tracker;
 			 }
+			 
 			 if(th.getParentTableName()!=null) {
 				 if(parentRow!=null) {
 					 String[] parentUniqueFields=th.getParentUniqueFields();
@@ -185,16 +184,16 @@ public class DBAdapter {
 									ArrayList<Object> values=th.getSubQuery(parentUniqueFields[j]).getCriteria().getValuesToBePlaced();
 									for(int k=0;k<values.size();k++) {
 										  Object data=values.get(k);
-										  convertAndSetObject(pt,temp+1,data);
-										  temp+=1;
+										  convertAndSetObject(pt,tracker,data);
+										  tracker+=1;
 									}
 							    }
 							    
 							    continue;
 						 }		 
 						 Object obj=parentRow.get(parentUniqueFields[j]);
-						 convertAndSetObject(pt,temp+1,obj);
-						 temp+=1;
+						 convertAndSetObject(pt,tracker,obj);
+						 tracker+=1;
 						 
 					 }
 				 }
@@ -213,6 +212,7 @@ public class DBAdapter {
 		
 	}
 	
+	//can insert multiple rows and multiple child rows
 	public void persistData(TableHolder th) throws Exception {
 
 		ArrayList<TableHolder> ths=new ArrayList<TableHolder>();
@@ -235,6 +235,53 @@ public class DBAdapter {
 		
 		
 	}
+	
+	
+	//can insert single row and get same row
+	public Long insertAndGetRowID(TableHolder th) throws Exception {
+	
+		PreparedStatement pt=conn.prepareStatement(constructInsertQuery(th),Statement.RETURN_GENERATED_KEYS);
+		Row row=th.getRows().get(0);
+		String[] fields=th.getFieldNames();
+	   
+		for(int j=0;j<fields.length;j++) {
+			 Object obj=row.get(fields[j]);
+			 convertAndSetObject(pt,j+1,obj);
+		}
+		
+		int affectedRows=pt.executeUpdate();
+		
+		if(affectedRows==0) {
+			throw new SQLException("Row creation failded!");
+		}else {
+			ResultSet rs=pt.getGeneratedKeys();
+			if (rs.next()) {
+			    return rs.getLong(1);
+			}
+		}
+        return null;	
+	}
+	
+	//can insert many rows of table
+	public void insertRowsOfTable(TableHolder th) throws Exception {
+			PreparedStatement pt=conn.prepareStatement(constructInsertQuery(th));
+			Map<Integer,Row> rowMap=th.getRows();
+			String[] fields=th.getFieldNames();
+			for(int i=0;i<rowMap.size();i++) {
+				 Row row=rowMap.get(i);
+				 for(int j=0;j<fields.length;j++) {
+					 Object obj=row.get(fields[j]);
+					 convertAndSetObject(pt,j+1,obj);
+				}
+				pt.addBatch();
+			}
+			
+			pt.executeBatch();
+			
+	}
+
+	
+	
 	
 	public void beginTxn() throws SQLException {
 		conn.setAutoCommit(false);
@@ -269,12 +316,12 @@ public class DBAdapter {
 	public int updateData(UpdateQuery uq) throws SQLException{
 		
 		PreparedStatement st = conn.prepareStatement(uq.getUpdateQueryString());
-		int temp=0;
+		int temp=1;
 		if(uq.getFields()!=null) {
-			ArrayList<Column> fields=uq.getFields();
+			List<Column> fields=uq.getFields();
 			for(int i=0;i<fields.size();i++) {
 				  Object data=fields.get(i).getValue();
-				  convertAndSetObject(st,temp+1,data);
+				  convertAndSetObject(st,temp,data);
 				  temp+=1;
 			}
 		}
@@ -283,12 +330,24 @@ public class DBAdapter {
 			ArrayList<Object> values=uq.getCriteria().getValuesToBePlaced();
 			for(int i=0;i<values.size();i++) {
 				  Object data=values.get(i);
-				  convertAndSetObject(st,temp+1,data);
+				  convertAndSetObject(st,temp,data);
 				  temp+=1;
 			}
 		}
 		
 		return st.executeUpdate();
+	}
+	
+	public int[] updateMultipleRows(String updateQuery,List<List<Object>> rows)throws SQLException {
+		PreparedStatement st = conn.prepareStatement(updateQuery);
+		for(int i=0;i<rows.size();i++) {
+			List<Object> columns=rows.get(i);
+			for(int j=0;j<columns.size();j++) {
+				convertAndSetObject(st,j+1,columns.get(j));
+			}
+			st.addBatch();
+		}
+		return st.executeBatch();		
 	}
 	
 	public int deleteData(DeleteQuery deletequery) throws SQLException {

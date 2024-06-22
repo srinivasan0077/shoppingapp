@@ -5,12 +5,18 @@
 <beans>
 
 <!-- bean definitions here -->
-    <bean id="dbconnection" class="com.shoppingapp.dbutils.MySqlDBConnection">
+  <!-- <bean id="dbconnection" class="com.shoppingapp.dbutils.MySqlDBConnection">
        <constructor-arg type="java.lang.String" value="com.mysql.cj.jdbc.Driver"></constructor-arg>
        <constructor-arg type="java.lang.String" value="jdbc:mysql://localhost:3306/shoppingapp"></constructor-arg>
        <constructor-arg type="java.lang.String" value="root"></constructor-arg>
        <constructor-arg type="java.lang.String" value=""></constructor-arg>
-    </bean>
+    </bean>-->
+    <bean id="dbconnection" class="com.shoppingapp.dbutils.MySqlDBConnection">
+       <constructor-arg type="java.lang.String" value="com.mysql.cj.jdbc.Driver"></constructor-arg>
+       <constructor-arg type="java.lang.String" value="jdbc:mysql://shoppingapp-db.c6eh0353tbft.ap-south-1.rds.amazonaws.com/shoppingapp"></constructor-arg>
+       <constructor-arg type="java.lang.String" value="root"></constructor-arg>
+       <constructor-arg type="java.lang.String" value="Gmw1t007"></constructor-arg>
+    </bean> 
 
     <bean id="dbadapter" class="com.shoppingapp.dbutils.DBAdapter" scope="prototype">
        <constructor-arg ref="dbconnection"></constructor-arg>

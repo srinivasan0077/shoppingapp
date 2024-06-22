@@ -13,15 +13,15 @@ public interface AuthUtilInterface {
 	
 	public User getUserBy(String key,Object value);
 	
-	public String createUser(User user);
+	public String createVerifiedUser(User user);
 	
-	public void updateUser(User user) throws Exception;
-	
-	public void authenticate(User user) throws Exception;
-	
-	public String checkUser(String email);
+	public String checkUserBy(String columname,String value);
 	
 	public boolean isAdmin(Long id);
+	
+	public User getAccountOfUser() throws Exception;
+	
+	public void updateField(String fieldName,String fieldValue)throws Exception;
 	
 	public void closeConnection();
 	

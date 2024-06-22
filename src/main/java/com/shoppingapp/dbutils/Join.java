@@ -1,7 +1,6 @@
 package com.shoppingapp.dbutils;
 
 import java.util.ArrayList;
-import java.util.List;
 
 public class Join {
 

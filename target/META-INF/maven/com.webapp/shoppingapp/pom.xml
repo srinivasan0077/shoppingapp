@@ -1,0 +1,114 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.webapp</groupId>
+  <artifactId>shoppingapp</artifactId>
+  <packaging>war</packaging>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>shoppingapp Maven Webapp</name>
+  <url>http://maven.apache.org</url>
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>3.8.1</version>
+      <scope>test</scope>
+    </dependency>
+   <!-- https://mvnrepository.com/artifact/org.springframework/spring-webmvc -->
+	<dependency>
+	    <groupId>org.springframework</groupId>
+	    <artifactId>spring-webmvc</artifactId>
+	    <version>5.3.18</version>
+	</dependency>
+	
+	<!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->
+	<dependency>
+	    <groupId>mysql</groupId>
+	    <artifactId>mysql-connector-java</artifactId>
+	    <version>8.0.28</version>
+	</dependency> 
+	<!-- https://mvnrepository.com/artifact/com.sun.mail/jakarta.mail -->
+	<dependency>
+	    <groupId>com.sun.mail</groupId>
+	    <artifactId>jakarta.mail</artifactId>
+	    <version>2.0.1</version>
+	</dependency>
+    <!-- https://mvnrepository.com/artifact/org.json/json -->
+	<dependency>
+	    <groupId>org.json</groupId>
+	    <artifactId>json</artifactId>
+	    <version>20220924</version>
+	</dependency>
+	<dependency>
+	  <groupId>com.sendinblue</groupId>
+	  <artifactId>sib-api-v3-sdk</artifactId>
+	  <version>6.0.0</version>
+	  <scope>compile</scope>
+	</dependency>
+	<!-- https://mvnrepository.com/artifact/org.quartz-scheduler/quartz -->
+	<dependency>
+	    <groupId>org.quartz-scheduler</groupId>
+	    <artifactId>quartz</artifactId>
+	    <version>2.3.2</version>
+	</dependency>
+    <!-- https://mvnrepository.com/artifact/commons-fileupload/commons-fileupload -->
+	<dependency>
+	    <groupId>commons-fileupload</groupId>
+	    <artifactId>commons-fileupload</artifactId>
+	    <version>1.5</version>
+	</dependency>
+
+     <!-- https://mvnrepository.com/artifact/org.hibernate.validator/hibernate-validator -->  
+	<dependency>  
+	    <groupId>org.hibernate.validator</groupId>  
+	    <artifactId>hibernate-validator</artifactId>  
+	    <version>6.0.13.Final</version>  
+	</dependency>
+	<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-api -->
+	<dependency>
+	    <groupId>org.apache.logging.log4j</groupId>
+	    <artifactId>log4j-api</artifactId>
+	    <version>2.20.0</version>
+	</dependency>
+
+	<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
+	<dependency>
+	    <groupId>org.apache.logging.log4j</groupId>
+	    <artifactId>log4j-core</artifactId>
+	    <version>2.20.0</version>
+	</dependency>
+	<!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-s3 -->
+	<dependency>
+	    <groupId>com.amazonaws</groupId>
+	    <artifactId>aws-java-sdk-s3</artifactId>
+	    <version>1.12.528</version>
+	</dependency>
+
+    <dependency>
+    <groupId>javax</groupId>
+    <artifactId>javaee-api</artifactId>
+    <version>8.0</version>
+    </dependency>
+
+
+ </dependencies>
+  <build>
+    <finalName>shoppingapp</finalName>
+    <plugins>
+        <plugin>
+		    <groupId>org.apache.maven.plugins</groupId>
+		    <artifactId>maven-war-plugin</artifactId>
+		    <version>3.3.1</version>
+		</plugin>
+		<plugin>
+		      <groupId>org.apache.maven.plugins</groupId>
+		      <artifactId>maven-compiler-plugin</artifactId>
+		      <version>3.8.1</version>
+		       <configuration>
+                <source>11</source>
+                <target>11</target>
+              </configuration>
+		</plugin>
+    </plugins>
+  </build>
+</project>

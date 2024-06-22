@@ -29,6 +29,7 @@ public class Category {
 	}
 	
 	public Category() {};
+	
 	public Long getProductTypeId() {
 		return productTypeId;
 	}

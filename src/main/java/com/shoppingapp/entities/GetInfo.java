@@ -4,7 +4,6 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.Size;
 
-import org.json.JSONObject;
 
 
 public class GetInfo {
@@ -18,7 +17,7 @@ public class GetInfo {
 	private String filterBy;
 	
 	private Object filterValue;
-	private JSONObject searchInfo;
+	
 	
 	public GetInfo(Integer range,Long paginationKey) {
 		
@@ -26,6 +25,8 @@ public class GetInfo {
 		this.paginationKey=paginationKey;
 			
 	}
+	
+	public GetInfo() {}
 	
 	public Integer getRange() {
 		return range;
@@ -38,14 +39,6 @@ public class GetInfo {
 	}
 	public void setPaginationKey(Long paginationKey) {
 		this.paginationKey = paginationKey;
-	}
-
-	public JSONObject getSearchInfo() {
-		return searchInfo;
-	}
-
-	public void setSearchInfo(JSONObject searchInfo) {
-		this.searchInfo = searchInfo;
 	}
 
 	public String getFilterBy() {

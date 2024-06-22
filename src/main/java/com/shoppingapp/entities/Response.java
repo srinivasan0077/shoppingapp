@@ -51,17 +51,18 @@ public class Response {
 		this.status = status;
 	}
 	
-	public String toString() {
-		Gson gson=new Gson();
-		return gson.toJson(this);
-	}
-
 	public int getNoofrows() {
 		return noofrows;
 	}
 
 	public void setNoofrows(int noofrows) {
 		this.noofrows = noofrows;
+	}
+	
+	@Override
+	public String toString() {
+		// TODO Auto-generated method stub
+		return  new Gson().toJson(this);
 	}
 	
 }

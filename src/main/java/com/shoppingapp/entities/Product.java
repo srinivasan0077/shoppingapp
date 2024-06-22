@@ -70,20 +70,19 @@ public class Product {
 		this.modifiedAt = modifiedAt;
 	}
 
+	public boolean getIsHeader() {
+		return isHeader;
+	}
+
+	public void setIsHeader(boolean isHeader) {
+		this.isHeader = isHeader;
+	}
+	
 	@Override
 	public String toString() {
 		return "Product [productId=" + productId + ", productName=" + productName + ", productType=" + productType
 				+ ", description=" + description + ", createdAt=" + createdAt + ", modifiedAt=" + modifiedAt + "]";
 	}
 
-	public boolean isHeader() {
-		return isHeader;
-	}
-
-	public void setHeader(boolean isHeader) {
-		this.isHeader = isHeader;
-	}
-	
-	
 	
 }

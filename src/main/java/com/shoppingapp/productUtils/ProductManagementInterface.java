@@ -1,16 +1,13 @@
 package com.shoppingapp.productUtils;
 
 import java.util.ArrayList;
-import java.util.Map;
-
-import org.json.JSONObject;
-
 import com.shoppingapp.dbutils.Criteria;
 import com.shoppingapp.entities.BannerImage;
 import com.shoppingapp.entities.Category;
 import com.shoppingapp.entities.Color;
 import com.shoppingapp.entities.GetInfo;
 import com.shoppingapp.entities.Inventory;
+import com.shoppingapp.entities.OrderEntity;
 import com.shoppingapp.entities.Product;
 import com.shoppingapp.entities.ProductItem;
 import com.shoppingapp.entities.ProductVariant;
@@ -105,6 +102,7 @@ public interface ProductManagementInterface {
 	
 	//db connection related
 	public void closeConnection();
+	
 	//banner
 	public void createBanner(BannerImage banner) throws Exception;
 	public BannerImage getBannerImageByName(String name)throws Exception;
@@ -112,6 +110,11 @@ public interface ProductManagementInterface {
 	public void deleteBannerImageById(Long imageId) throws Exception;
 	public void editBannerImage(BannerImage image) throws Exception;
 	public ArrayList<BannerImage> getBannerImages() throws Exception;
+	
+	//order
+	public ArrayList<OrderEntity> getOrders(GetInfo info);
+	public OrderEntity getOrderById(Long id)throws Exception;
+	public void closeOrder(Long id)throws Exception;
 		
 	
 }

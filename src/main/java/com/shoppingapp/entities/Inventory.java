@@ -16,6 +16,8 @@ public class Inventory {
 	@ForeignKeyField(name = "variantId")
 	private ProductVariant variant;
 	
+	private int orderedCount;
+	
 	
 	private int availableStocks;
 	
@@ -42,6 +44,12 @@ public class Inventory {
 	}
 	public void setAvailableStocks(int availableStocks) {
 		this.availableStocks = availableStocks;
+	}
+	public int getOrderedCount() {
+		return orderedCount;
+	}
+	public void setOrderedCount(int orderedCount) {
+		this.orderedCount = orderedCount;
 	}
 	
 	

@@ -14,4 +14,10 @@ public class TableNames {
 		public static String TOPIC_VARIANT_RELATION="topic_variant_relation";
 		public static String CART="cart";
 		public static String BANNER_IMAGES="banner_images";
+		public static String USER_ADDRESS="user_address";
+		public static String USERS="verified_users";
+		public static String ORDERS="orders";
+		public static String ORDER_VARIANT_RELATION="order_variant_relation";
+		public static String ORDER_VARIANT_REL="order_variant_relation";
+		
 }

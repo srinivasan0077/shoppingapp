@@ -77,8 +77,52 @@
 	    <artifactId>log4j-core</artifactId>
 	    <version>2.20.0</version>
 	</dependency>
+	<!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-s3 -->
+	<dependency>
+	    <groupId>com.amazonaws</groupId>
+	    <artifactId>aws-java-sdk-s3</artifactId>
+	    <version>1.12.528</version>
+	</dependency>
 
+    <dependency>
+    <groupId>javax</groupId>
+    <artifactId>javaee-api</artifactId>
+    <version>8.0</version>
+    </dependency>
+    
+    <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-ses -->
+	<dependency>
+	    <groupId>com.amazonaws</groupId>
+	    <artifactId>aws-java-sdk-ses</artifactId>
+	    <version>1.12.546</version>
+	</dependency>
 
+    <!-- https://mvnrepository.com/artifact/com.stripe/stripe-java -->
+	<dependency>
+	    <groupId>com.stripe</groupId>
+	    <artifactId>stripe-java</artifactId>
+	    <version>23.4.0</version>
+	</dependency>
+	
+	<!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
+	<dependency>
+	    <groupId>com.google.code.gson</groupId>
+	    <artifactId>gson</artifactId>
+	    <version>2.10.1</version>
+	</dependency>
+
+   <dependency>
+     <groupId>com.google.api-client</groupId>
+     <artifactId>google-api-client</artifactId>
+     <version>1.32.1</version>
+   </dependency>
+<dependency>
+    <groupId>com.google.http-client</groupId>
+    <artifactId>google-http-client-jackson2</artifactId>
+    <version>1.39.1</version> <!-- Use the latest version -->
+</dependency>
+
+	
  </dependencies>
   <build>
     <finalName>shoppingapp</finalName>
@@ -87,11 +131,43 @@
 		    <groupId>org.apache.maven.plugins</groupId>
 		    <artifactId>maven-war-plugin</artifactId>
 		    <version>3.3.1</version>
+		    <configuration>
+
+				<webResources>
+		
+					<resource>
+		
+						<directory>src/main/.ebextensions</directory>
+		
+						<targetPath>.ebextensions</targetPath>
+		
+						<filtering>true</filtering>
+		
+					</resource>
+					
+		            <resource>
+		
+						<directory>src/main/.platform</directory>
+		
+						<targetPath>.platform</targetPath>
+		
+						<filtering>true</filtering>
+		
+					</resource>
+				</webResources>
+		
+			</configuration>
+
+
 		</plugin>
 		<plugin>
 		      <groupId>org.apache.maven.plugins</groupId>
 		      <artifactId>maven-compiler-plugin</artifactId>
 		      <version>3.8.1</version>
+		       <configuration>
+                <source>11</source>
+                <target>11</target>
+              </configuration>
 		</plugin>
     </plugins>
   </build>

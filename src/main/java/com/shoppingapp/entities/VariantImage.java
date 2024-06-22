@@ -14,8 +14,12 @@ public class VariantImage {
 	
 	@Null
 	private ProductVariant variant;
+	
 	@Null
 	private String url;
+	
+	@Null
+	private String imageKey;
 	
 	@NotNull
 	@Min(value = 0,message = "order should have minimum value of 0")
@@ -51,6 +55,11 @@ public class VariantImage {
 	public void setOrd(int ord) {
 		this.ord = ord;
 	}
-	
+	public String getImageKey() {
+		return imageKey;
+	}
+	public void setImageKey(String imageKey) {
+		this.imageKey = imageKey;
+	}
 	
 }

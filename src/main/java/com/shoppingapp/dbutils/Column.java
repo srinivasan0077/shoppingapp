@@ -6,6 +6,7 @@ public class Column {
 	private String columnName;
 	private String aliasName;
 	private Object value;
+	private Boolean setQueryAsValue=false;
 	
 	public Column(String tableName, String columnName) {
 		this.tableName = tableName;
@@ -17,6 +18,15 @@ public class Column {
 		this.columnName = columnName;
 		this.value=value;
 	}
+	
+	public Column(String tableName, String columnName,Object value,Boolean setQueryAsValue) {
+		this.tableName = tableName;
+		this.columnName = columnName;
+		this.value=value;
+		this.setQueryAsValue=setQueryAsValue;
+	}
+	
+    
 	
 	public String getTableName() {
 		return tableName;
@@ -45,6 +55,14 @@ public class Column {
 
 	public void setAliasName(String aliasName) {
 		this.aliasName = aliasName;
+	}
+
+	public Boolean getSetQueryAsValue() {
+		return setQueryAsValue;
+	}
+
+	public void setSetQueryAsValue(Boolean setQueryAsValue) {
+		this.setQueryAsValue = setQueryAsValue;
 	}
 
 	

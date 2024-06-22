@@ -31,6 +31,8 @@ public class ProductVariant {
 	
 	private boolean isActive=false;
 	
+	private boolean isCOD=false;
+	
 	private String imageUrl;
 	
 	private ArrayList<VariantImage> images;
@@ -107,13 +109,18 @@ public class ProductVariant {
 	public void setInventories(ArrayList<Inventory> inventories) {
 		this.inventories = inventories;
 	}
-	public boolean isActive() {
+	public Boolean getIsActive() {
 		return isActive;
 	}
-	public void setActive(boolean isActive) {
+	public void setIsActive(boolean isActive) {
 		this.isActive = isActive;
 	}
-	
+	public boolean getIsCOD() {
+		return isCOD;
+	}
+	public void setIsCOD(boolean isCOD) {
+		this.isCOD = isCOD;
+	}
 	
 	
 }

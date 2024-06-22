@@ -4,8 +4,6 @@ package com.shoppingapp.filters;
 
 
 import java.io.IOException;
-import java.util.Enumeration;
-
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -25,6 +23,8 @@ import com.shoppingapp.entities.User;
 public class AdminFilter extends HttpFilter implements Filter  {
        
 	private static final long serialVersionUID = 1L;
+	private static String localReactServer="http://localhost:3000";
+	private static String remoteReactServer="https://www.royall.in";
 
 	public AdminFilter() {
         super();
@@ -46,11 +46,11 @@ public class AdminFilter extends HttpFilter implements Filter  {
 			
 			User user=(User)session.getAttribute("user");
 			String csrfToken=(String)session.getAttribute("csrfToken");
-			String csrfHeader=req.getHeader("csrf_token");
-			if(user==null || !user.isAuthenticated() || csrfToken==null) {
+			String csrfHeader=req.getHeader("csrfToken");
+			if(user==null || !user.getIsAuthenticated() || csrfToken==null) {
 	            Response responseJSON=new Response("Unauthorized",Response.UNAUTHORIZED,null);
 				res.setStatus(401);
-				res.addHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+				setAllowOrgin(req, res);
 				res.addHeader("Access-Control-Allow-Credentials", "true");
 				res.getWriter().print(responseJSON.toString());
 				return;
@@ -59,7 +59,7 @@ public class AdminFilter extends HttpFilter implements Filter  {
 			if(csrfHeader==null || !csrfHeader.equals(csrfToken)) {
 				Response responseJSON=new Response("Invalid csrf token!",Response.UNAUTHORIZED,null);
 				res.setStatus(401);
-				res.addHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+				setAllowOrgin(req, res);
 				res.addHeader("Access-Control-Allow-Credentials", "true");
 				res.getWriter().print(responseJSON.toString());
 				return;
@@ -68,7 +68,7 @@ public class AdminFilter extends HttpFilter implements Filter  {
 			if(user.getRoleid()==null || user.getRoleid()!=Long.valueOf(2)) {
 				Response responseJSON=new Response("Unauthorized",Response.UNAUTHORIZED,null);
 				res.setStatus(401);
-				res.addHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+				setAllowOrgin(req, res);
 				res.addHeader("Access-Control-Allow-Credentials", "true");
 				res.getWriter().print(responseJSON.toString());
 				return;
@@ -78,7 +78,11 @@ public class AdminFilter extends HttpFilter implements Filter  {
 		}
 	}
 
-	public void init(FilterConfig fConfig) throws ServletException {
+	private void setAllowOrgin(HttpServletRequest req,HttpServletResponse res) {
+		if (localReactServer.equals(req.getHeader("Origin"))) {
+	        res.setHeader("Access-Control-Allow-Origin",localReactServer);
+	    } else{
+	        res.setHeader("Access-Control-Allow-Origin",remoteReactServer);
+	    }
 	}
-
 }

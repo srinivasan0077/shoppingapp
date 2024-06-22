@@ -9,13 +9,16 @@ public class OTPHolder {
 
 	@NotNull(message = "otp cannot be null")
 	private String otp;
-	@Null
+	
+	@Null(message = "Cannot process invalid fields!")
 	private Date expiry;
 	
 	public OTPHolder(String otp, Date expiry) {
 		this.otp = otp;
 		this.expiry = expiry;
 	}
+	
+	public OTPHolder() {}
 
 	public String getOtp() {
 		return otp;

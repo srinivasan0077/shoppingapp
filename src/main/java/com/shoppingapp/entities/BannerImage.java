@@ -13,6 +13,9 @@ public class BannerImage {
 	@Null
 	private String url;
 	
+	@Null
+	private String imageKey;
+	
 	@NotNull
 	@Min(value = 0,message = "order should have minimum value of 0")
 	private int ord;
@@ -41,5 +44,11 @@ public class BannerImage {
 	}
 	public void setOrd(int ord) {
 		this.ord = ord;
+	}
+	public String getImageKey() {
+		return imageKey;
+	}
+	public void setImageKey(String imageKey) {
+		this.imageKey = imageKey;
 	}
 }
